@@ -6,12 +6,12 @@ const getApiBaseUrl = () => {
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
-  
+
   // For ngrok or external access, use relative path (proxied by Vite)
   if (window.location.hostname.includes('ngrok')) {
     return '/api';
   }
-  
+
   // For localhost development, use relative path (proxied by Vite)
   return '/api';
 };
@@ -31,7 +31,7 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  
+
   // Log all API requests
   console.log('🌐 API Request:', {
     method: config.method?.toUpperCase(),
@@ -41,7 +41,7 @@ api.interceptors.request.use((config) => {
     data: config.data,
     headers: config.headers
   });
-  
+
   return config;
 });
 
@@ -62,7 +62,7 @@ api.interceptors.response.use(
       message: error.message,
       data: error.response?.data
     });
-    
+
     if (error.response?.status === 401) {
       localStorage.removeItem('auth_token');
       localStorage.removeItem('user');
@@ -88,6 +88,8 @@ export interface Session {
   updatedAt: Date;
   creatorName?: string;
   creatorEmail?: string;
+  painPointsCount?: number;
+  useCasesCount?: number;
 }
 
 export interface PainPoint {
@@ -135,12 +137,12 @@ export const authAPI = {
     const { data } = await api.post('/auth/register', { email, password, name, role });
     return data;
   },
-  
+
   login: async (email: string, password: string) => {
     const { data } = await api.post('/auth/login', { email, password });
     return data;
   },
-  
+
   getMe: async () => {
     const { data } = await api.get('/auth/me');
     return data as User;
@@ -153,22 +155,22 @@ export const sessionsAPI = {
     const { data } = await api.get('/sessions');
     return data as Session[];
   },
-  
+
   getOne: async (id: number) => {
     const { data } = await api.get(`/sessions/${id}`);
     return data as Session;
   },
-  
+
   create: async (name: string, description?: string) => {
     const { data } = await api.post('/sessions', { name, description });
     return data as Session;
   },
-  
+
   update: async (id: number, name?: string, description?: string) => {
     const { data } = await api.put(`/sessions/${id}`, { name, description });
     return data as Session;
   },
-  
+
   delete: async (id: number) => {
     await api.delete(`/sessions/${id}`);
   },
@@ -180,17 +182,17 @@ export const painPointsAPI = {
     const { data } = await api.get(`/pain-points/session/${sessionId}`);
     return data as PainPoint[];
   },
-  
+
   create: async (sessionId: number, category: string, title: string, description: string, theme?: string, priority?: string, quadrant?: string) => {
     const { data } = await api.post('/pain-points', { sessionId, category, title, description, theme, priority, quadrant });
     return data as PainPoint;
   },
-  
+
   update: async (id: number, category?: string, title?: string, description?: string, theme?: string, priority?: string, quadrant?: string) => {
     const { data } = await api.put(`/pain-points/${id}`, { category, title, description, theme, priority, quadrant });
     return data as PainPoint;
   },
-  
+
   delete: async (id: number) => {
     await api.delete(`/pain-points/${id}`);
   },
@@ -199,15 +201,15 @@ export const painPointsAPI = {
 // Use Cases API
 export const useCasesAPI = {
   getBySession: async (sessionId: number) => {
-    const { data} = await api.get(`/use-cases/session/${sessionId}`);
+    const { data } = await api.get(`/use-cases/session/${sessionId}`);
     return data as UseCase[];
   },
-  
+
   update: async (sessionId: number, useCaseId: string, updates: Partial<UseCase>) => {
     const { data } = await api.post('/use-cases', { sessionId, useCaseId, ...updates });
     return data as UseCase;
   },
-  
+
   batchUpdate: async (sessionId: number, updates: Array<{ useCaseId: string } & Partial<UseCase>>) => {
     const { data } = await api.post('/use-cases/batch', { sessionId, updates });
     return data as UseCase[];
@@ -228,7 +230,7 @@ export const exportAPI = {
     link.click();
     link.remove();
   },
-  
+
   downloadCSV: async (sessionId: number) => {
     const response = await api.get(`/export/session/${sessionId}/csv`, {
       responseType: 'blob',

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db, schema } from '../db';
 import { authenticate } from '../middleware/auth';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, sql } from 'drizzle-orm';
 
 const router = Router();
 
@@ -20,6 +20,8 @@ router.get('/', async (req, res) => {
       updatedAt: schema.sessions.updatedAt,
       creatorName: schema.users.name,
       creatorEmail: schema.users.email,
+      painPointsCount: sql<number>`(SELECT count(*)::int FROM ${schema.painPoints} WHERE ${schema.painPoints.sessionId} = ${schema.sessions.id})`,
+      useCasesCount: sql<number>`(SELECT count(*)::int FROM ${schema.useCases} WHERE ${schema.useCases.sessionId} = ${schema.sessions.id})`,
     })
       .from(schema.sessions)
       .leftJoin(schema.users, eq(schema.sessions.createdBy, schema.users.id))
@@ -36,7 +38,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const sessionId = parseInt(req.params.id);
-    
+
     const [session] = await db.select({
       id: schema.sessions.id,
       name: schema.sessions.name,

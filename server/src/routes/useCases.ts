@@ -12,7 +12,7 @@ router.use(authenticate);
 router.get('/session/:sessionId', async (req, res) => {
   try {
     const sessionId = parseInt(req.params.sessionId);
-    
+
     const useCases = await db.select({
       id: schema.useCases.id,
       sessionId: schema.useCases.sessionId,
@@ -88,14 +88,14 @@ router.post('/', async (req, res) => {
           revenue: revenue !== undefined ? revenue : existing.revenue,
           savings: savings !== undefined ? savings : existing.savings,
           timeline: timeline !== undefined ? timeline : existing.timeline,
-        // anil  ADD THESE 6 LINES:
-        name: name !== undefined ? name : existing.name,
-        category: category !== undefined ? category : existing.category,
-        problem: problem !== undefined ? problem : existing.problem,
-        agentRole: agentRole !== undefined ? agentRole : existing.agentRole,
-        dataRequired: dataRequired !== undefined ? dataRequired : existing.dataRequired,
-        integration: integration !== undefined ? integration : existing.integration,
-        // END
+          // anil  ADD THESE 6 LINES:
+          name: name !== undefined ? name : existing.name,
+          category: category !== undefined ? category : existing.category,
+          problem: problem !== undefined ? problem : existing.problem,
+          agentRole: agentRole !== undefined ? agentRole : existing.agentRole,
+          dataRequired: dataRequired !== undefined ? dataRequired : existing.dataRequired,
+          integration: integration !== undefined ? integration : existing.integration,
+          // END
           updatedBy: req.user!.userId,
           updatedAt: new Date(),
         })

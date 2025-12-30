@@ -40,24 +40,24 @@ export const WorkshopProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [savedUseCases, setSavedUseCases] = useState<UIUseCase[]>([]);
   const [savedUseCaseStates, setSavedUseCaseStates] = useState<Map<string, any>>(new Map());
   const [isReady, setIsReady] = useState(false);
-  
-//added by anil-NEW: Store list of all recent sessions for the user
+
+  //added by anil-NEW: Store list of all recent sessions for the user
   const [recentSessions, setRecentSessions] = useState<Session[]>([]);
 
-//added by anil
+  //added by anil
   // 🆕 NEW: Function to load all recent sessions from database
   const loadRecentSessions = useCallback(async () => {
     try {
       console.log('📋 Loading recent sessions...');
-      
+
       // Call the API to get all sessions (already sorted by most recent)
       const sessions = await sessionsAPI.getAll();
-      
+
       console.log('✅ Loaded', sessions.length, 'recent sessions');
-      
+
       // Store them in state
       setRecentSessions(sessions);
-      
+
     } catch (error) {
       console.error('❌ Failed to load recent sessions:', error);
       // Don't throw - just log the error so app continues working
@@ -70,26 +70,26 @@ export const WorkshopProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const loadSession = useCallback(async (sessionId: number) => {
     try {
       console.log('🔄 Switching to session:', sessionId);
-      
+
       // Load the session data
       const sessionData = await sessionsAPI.getOne(sessionId);
       setSession(sessionData);
       setSessionId(sessionData.id);
-      
+
       // Save to localStorage so it persists
       localStorage.setItem('workshop_session_id', sessionData.id.toString());
       console.log('✅ Saved session ID to localStorage:', sessionData.id);
-      
+
       // Load pain points for this session
       const painPoints = await painPointsAPI.getBySession(sessionData.id);
       setCustomPainPoints(painPoints.map(apiToUIPainPoint));
       console.log('✅ Loaded', painPoints.length, 'pain points');
-      
+
       // Load use cases for this session
       try {
         const useCases = await useCasesAPI.getBySession(sessionData.id);
         console.log('✅ Loaded use case states:', useCases.length, 'items');
-        
+
         // Create a map of useCaseId to saved state
         const stateMap = new Map();
         useCases.forEach((uc: any) => {
@@ -101,7 +101,7 @@ export const WorkshopProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             timeline: uc.timeline,
 
 
-             //anil ADD THESE 6 FIELDS:
+            //anil ADD THESE 6 FIELDS:
             name: uc.name,
             category: uc.category,
             problem: uc.problem,
@@ -115,49 +115,49 @@ export const WorkshopProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       } catch (error) {
         console.error('Failed to load use cases:', error);
       }
-      
+
       console.log('✅ Successfully switched to session:', sessionId);
-      
+
     } catch (error) {
       console.error('❌ Failed to load session:', error);
       throw error; // Re-throw so UI can show error
     }
   }, []);
 
-//anil
+  //anil
   // 🆕 NEW: Function to create a brand new session (fresh start)
   const createNewSession = useCallback(async () => {
     try {
       console.log('🆕 Creating brand new session...');
-      
+
       // Create new session in database with timestamp in name
       const newSession = await sessionsAPI.create(
         `Visa Workshop - ${new Date().toLocaleDateString()}`,
         'Collaborative discovery session'
       );
-      
+
       console.log('✅ New session created:', newSession.id);
-      
+
       // Update current session state
       setSession(newSession);
       setSessionId(newSession.id);
-      
+
       // Save to localStorage
       localStorage.setItem('workshop_session_id', newSession.id.toString());
       console.log('✅ Saved new session ID to localStorage:', newSession.id);
-      
+
       // Clear all data for fresh start
       setCustomPainPoints([]);
       setSavedUseCases([]);
       setSavedUseCaseStates(new Map());
       console.log('✅ Cleared all pain points and use cases for fresh start');
-      
+
       // Refresh the recent sessions list to include this new session
       await loadRecentSessions();
       console.log('✅ Refreshed recent sessions list');
-      
+
       return newSession;
-      
+
     } catch (error) {
       console.error('❌ Failed to create new session:', error);
       throw error; // Re-throw so UI can show error
@@ -172,25 +172,25 @@ export const WorkshopProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         // Check if there's a session in localStorage
         const savedSessionId = localStorage.getItem('workshop_session_id');
         const parsedSessionId = savedSessionId ? parseInt(savedSessionId, 10) : null;
-        
+
         console.log('🔍 Checking saved session:', { savedSessionId, parsedSessionId, isValid: parsedSessionId && !isNaN(parsedSessionId) });
-        
+
         if (parsedSessionId && !isNaN(parsedSessionId)) {
           // Load existing session
           console.log('📂 Loading existing session:', parsedSessionId);
           const sessionData = await sessionsAPI.getOne(parsedSessionId);
           setSession(sessionData);
           setSessionId(sessionData.id);
-          
+
           // Load custom pain points
           const painPoints = await painPointsAPI.getBySession(sessionData.id);
           setCustomPainPoints(painPoints.map(apiToUIPainPoint));
-          
+
           // Load saved use cases
           try {
             const useCases = await useCasesAPI.getBySession(sessionData.id);
             console.log('✅ Loaded use case states from database:', useCases.length, 'items');
-            
+
             // Create a map of useCaseId to saved state
             const stateMap = new Map();
             useCases.forEach((uc: any) => {
@@ -201,7 +201,7 @@ export const WorkshopProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 savings: uc.savings,
                 timeline: uc.timeline,
 
-                 // anil ADD THESE 6 FIELDS:
+                // anil ADD THESE 6 FIELDS:
                 name: uc.name,
                 category: uc.category,
                 problem: uc.problem,
@@ -221,7 +221,7 @@ export const WorkshopProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             console.warn('⚠️ Invalid session ID in localStorage, clearing:', savedSessionId);
             localStorage.removeItem('workshop_session_id');
           }
-          
+
           // Create new session
           console.log('🆕 Creating new session');
           const newSession = await sessionsAPI.create(
@@ -252,29 +252,29 @@ export const WorkshopProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [user, loadRecentSessions]);
 
 
-  
+
 
   const saveCustomPainPoint = useCallback(async (painPoint: UIPainPoint) => {
     console.log('\n🔵 saveCustomPainPoint called');
     console.log('Pain point to save:', painPoint);
     console.log('Current sessionId:', sessionId);
-    
+
     if (!sessionId) {
       console.error('❌ No sessionId available!');
       return;
     }
-    
+
     try {
       const apiData = uiToAPIPainPoint(painPoint);
       console.log('Converted to API format:', apiData);
-      
+
       console.log('Calling painPointsAPI.create with:', {
         sessionId,
         category: apiData.category,
         title: apiData.title,
         description: apiData.description
       });
-      
+
       const saved = await painPointsAPI.create(
         sessionId,
         apiData.category,
@@ -284,18 +284,18 @@ export const WorkshopProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         apiData.priority,
         apiData.quadrant
       );
-      
+
       console.log('✅ Pain point saved to backend:', saved);
-      
+
       const uiPainPoint = apiToUIPainPoint(saved);
       console.log('Converted back to UI format:', uiPainPoint);
-      
+
       setCustomPainPoints(prev => {
         const updated = [...prev, uiPainPoint];
         console.log('Updated customPainPoints:', updated.length);
         return updated;
       });
-      
+
       console.log('✅ saveCustomPainPoint completed successfully');
     } catch (error) {
       console.error('❌ Failed to save pain point:', error);
@@ -307,19 +307,19 @@ export const WorkshopProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const updateCustomPainPoint = useCallback(async (painPoint: UIPainPoint) => {
     console.log('\n🔵 updateCustomPainPoint called');
     console.log('Pain point to update:', painPoint);
-    
+
     if (!sessionId) {
       console.error('❌ No sessionId available!');
       return;
     }
-    
+
     try {
       let numericId: number;
-      
+
       // If it has 'custom-' prefix, extract the ID from it
       if (painPoint.id.startsWith('custom-')) {
         numericId = parseInt(painPoint.id.replace('custom-', ''), 10);
-        
+
         if (isNaN(numericId)) {
           console.error('❌ Invalid pain point ID format:', painPoint.id);
           return;
@@ -327,25 +327,25 @@ export const WorkshopProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       } else {
         // For initial pain points (pp5, time-1, etc.), find the matching database record by question
         const dbPainPoint = customPainPoints.find(cp => cp.question === painPoint.question);
-        
+
         if (!dbPainPoint) {
           console.warn('⚠️ Pain point not found in database, cannot update:', painPoint.question);
           return;
         }
-        
+
         // Extract numeric ID from the database pain point
         numericId = parseInt(dbPainPoint.id.replace('custom-', ''), 10);
-        
+
         if (isNaN(numericId)) {
           console.error('❌ Invalid database pain point ID:', dbPainPoint.id);
           return;
         }
-        
+
         console.log(`Found database ID ${numericId} for pain point: ${painPoint.question}`);
       }
-      
+
       const apiData = uiToAPIPainPoint(painPoint);
-      
+
       console.log('Calling painPointsAPI.update with ID:', numericId);
       const updated = await painPointsAPI.update(
         numericId,
@@ -356,12 +356,12 @@ export const WorkshopProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         apiData.priority,
         apiData.quadrant
       );
-      
+
       console.log('✅ Pain point updated in backend:', updated);
-      
+
       const uiPainPoint = apiToUIPainPoint(updated);
       setCustomPainPoints(prev => prev.map(pp => pp.id === painPoint.id ? uiPainPoint : pp));
-      
+
       console.log('✅ updateCustomPainPoint completed successfully');
     } catch (error) {
       console.error('❌ Failed to update pain point:', error);
@@ -371,7 +371,7 @@ export const WorkshopProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const deleteCustomPainPoint = useCallback(async (id: string) => {
     if (!sessionId) return;
-    
+
     try {
       // Extract numeric ID from custom-{id} format
       const numericId = parseInt(id.replace('custom-', ''));
@@ -385,7 +385,7 @@ export const WorkshopProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const saveUseCaseState = useCallback(async (useCase: UIUseCase) => {
     if (!sessionId) return;
-    
+
     try {
       const apiData = uiToAPIUseCase(useCase);
       await useCasesAPI.update(sessionId, apiData.useCaseId, apiData);
@@ -399,12 +399,12 @@ export const WorkshopProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     console.log('🔵 batchSaveUseCases called with:', useCases.length, 'use cases');
     console.log('🔵 sessionId:', sessionId);
     console.log('🔵 First use case sample:', useCases[0]);
-    
+
     if (!sessionId) {
       console.warn('⚠️ No sessionId available, skipping save');
       return;
     }
-    
+
     try {
       const updates = useCases.map(uiToAPIUseCase);
       console.log('🔵 Mapped updates (first 3):', updates.slice(0, 3));
@@ -443,8 +443,8 @@ export const WorkshopProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       saveUseCaseState,
       batchSaveUseCases,
       canEdit,
-        //anil
-       // 🆕 NEW: Add these four lines
+      //anil
+      // 🆕 NEW: Add these four lines
       recentSessions,
       loadRecentSessions,
       loadSession,

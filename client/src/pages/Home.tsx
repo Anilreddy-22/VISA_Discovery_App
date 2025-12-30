@@ -21,7 +21,7 @@ import { AUDREY_PAIN_POINTS, BASELINE_ROI_PROJECTIONS } from "@/audrey_use_cases
 
 // --- Types ---
 
-type Step = 
+type Step =
   | "welcome"
   | "identify"
   | "categorize"
@@ -166,14 +166,14 @@ const OLD_INITIAL_PAIN_POINTS: PainPoint[] = [
 
 // --- Components ---
 
-const Header = ({ onSave, isSaving, lastSaved, hasUnsavedChanges }: { 
-  onSave?: () => void, 
-  isSaving?: boolean, 
+const Header = ({ onSave, isSaving, lastSaved, hasUnsavedChanges }: {
+  onSave?: () => void,
+  isSaving?: boolean,
   lastSaved?: Date | null,
-  hasUnsavedChanges?: boolean 
+  hasUnsavedChanges?: boolean
 }) => {
   const { user, logout } = useAuth();
-  
+
   const handleLogout = () => {
     if (hasUnsavedChanges && onSave) {
       if (confirm('You have unsaved changes. Would you like to save before logging out?')) {
@@ -186,15 +186,15 @@ const Header = ({ onSave, isSaving, lastSaved, hasUnsavedChanges }: {
       logout();
     }
   };
-  
+
   return (
     <header className="border-b border-border bg-background sticky top-0 z-50">
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="h-8 overflow-hidden flex items-center">
-            <img 
-              src="/images/buyframe_logo_new.png" 
-              alt="BuyFrame" 
+            <img
+              src="/images/buyframe_logo_new.png"
+              alt="BuyFrame"
               className="h-12 w-auto object-contain object-left -ml-2"
             />
           </div>
@@ -226,9 +226,9 @@ const Header = ({ onSave, isSaving, lastSaved, hasUnsavedChanges }: {
               )}
               {/* Save Button */}
               {onSave && (
-                <Button 
+                <Button
                   variant={hasUnsavedChanges ? "default" : "outline"}
-                  size="sm" 
+                  size="sm"
                   onClick={onSave}
                   disabled={isSaving}
                   className={hasUnsavedChanges ? "bg-red-600 hover:bg-red-700 text-white" : ""}
@@ -260,7 +260,7 @@ const ProgressBar = ({ currentStep, totalSteps }: { currentStep: number; totalSt
   const progress = (currentStep / totalSteps) * 100;
   return (
     <div className="fixed top-16 left-0 w-full h-1 bg-muted z-40">
-      <motion.div 
+      <motion.div
         className="h-full bg-[var(--color-buyframe-red)]"
         initial={{ width: 0 }}
         animate={{ width: `${progress}%` }}
@@ -276,13 +276,14 @@ export default function Home() {
   const { batchSaveUseCases, savedUseCases, savedUseCaseStates, customPainPoints, saveCustomPainPoint, updateCustomPainPoint, deleteCustomPainPoint, isReady,
     //anil
     // 🆕 NEW: Session management
-  recentSessions,
-  loadSession,
-  createNewSession,
-   } = useWorkshop();
+    recentSessions,
+    loadSession,
+    createNewSession,
+  } = useWorkshop();
   const [step, setStep] = useState<Step>("welcome");
   const [painPoints, setPainPoints] = useState<PainPoint[]>(INITIAL_PAIN_POINTS);
-  
+  const [recentPageIndex, setRecentPageIndex] = useState(0);
+
   // Debug: Log savedUseCaseStates when it changes
   useEffect(() => {
     if (savedUseCaseStates.size > 0) {
@@ -290,7 +291,7 @@ export default function Home() {
     }
   }, [savedUseCaseStates]);
   const [deletedPainPointIds, setDeletedPainPointIds] = useState<string[]>([]);
-  
+
   // Load custom pain points from database when ready
   const [painPointsLoaded, setPainPointsLoaded] = useState(false);
   useEffect(() => {
@@ -305,7 +306,7 @@ export default function Home() {
   useEffect(() => {
     if (isReady && painPointsLoaded && customPainPoints.length > 0) {
       console.log('✅ Merging custom pain points from database:', customPainPoints.length);
-      
+
       setPainPoints(currentPoints => {
         // Create a map of database pain points by their question (title)
         const dbPainPointsByQuestion = new Map();
@@ -314,7 +315,7 @@ export default function Home() {
           dbPainPointsByQuestion.set(p.question, p);
           dbPainPointsById.set(p.id, p);
         });
-        
+
         // Merge: use database version if it exists (match by question or ID), otherwise use current version
         const mergedPoints = INITIAL_PAIN_POINTS.map(initialPoint => {
           const dbVersion = dbPainPointsByQuestion.get(initialPoint.question);
@@ -327,7 +328,7 @@ export default function Home() {
           const currentVersion = currentPoints.find(cp => cp.id === initialPoint.id);
           return currentVersion || initialPoint;
         });
-        
+
         // Add any truly custom pain points that don't match any initial ones
         customPainPoints.forEach(p => {
           if (!INITIAL_PAIN_POINTS.find(ip => ip.question === p.question)) {
@@ -339,7 +340,7 @@ export default function Home() {
             }
           }
         });
-        
+
         console.log('Merged pain points:', mergedPoints.length, 'total');
         return mergedPoints;
       });
@@ -356,19 +357,19 @@ export default function Home() {
       console.log('🔄 Regenerating use cases from saved data...');
       console.log('📊 savedUseCaseStates size:', savedUseCaseStates.size);
       console.log('📊 Current useCases length:', useCases.length);
-      
+
       const generateUseCaseFromPainPoint = (p: PainPoint) => {
         const baseline = BASELINE_ROI_PROJECTIONS[p.id as keyof typeof BASELINE_ROI_PROJECTIONS];
         const useCaseId = `uc-${p.id}`;
         const savedState = savedUseCaseStates.get(useCaseId);
-        
+
         // Check if saved priority is a backlog priority (P1, P2, P3)
         const isBacklogPriority = savedState?.priority && ['P1', 'P2', 'P3'].includes(savedState.priority);
-        
+
         if (savedState) {
           console.log(`✅ Found saved data for ${useCaseId}:`, savedState);
         }
-        
+
         return {
           id: useCaseId,
           painPointId: p.id,
@@ -379,11 +380,11 @@ export default function Home() {
           //integration: baseline?.integration || "",
 
           //anil
-          name: savedState?.name || baseline?.name || p.response,  
-          category: savedState?.category || p.category,  
-          problem: savedState?.problem || baseline?.problem || p.response,  
-          agentRole: savedState?.agentRole || baseline?.agentRole || "", 
-          dataRequired: savedState?.dataRequired || baseline?.dataRequired || "",  
+          name: savedState?.name || baseline?.name || p.response,
+          category: savedState?.category || p.category,
+          problem: savedState?.problem || baseline?.problem || p.response,
+          agentRole: savedState?.agentRole || baseline?.agentRole || "",
+          dataRequired: savedState?.dataRequired || baseline?.dataRequired || "",
           integration: savedState?.integration || baseline?.integration || "",
 
 
@@ -409,15 +410,15 @@ export default function Home() {
       const regeneratedUseCases = painPoints.map(generateUseCaseFromPainPoint);
       console.log('✅ Regenerated', regeneratedUseCases.length, 'use cases from saved data');
       console.log('📊 Sample use case:', regeneratedUseCases[0]);
-      
+
       setUseCases(regeneratedUseCases);
-      
+
       // Update cumulative ROI
       const totalRev = regeneratedUseCases.reduce((acc, c) => acc + (c.calculatedRevenue || 0), 0);
       const totalSav = regeneratedUseCases.reduce((acc, c) => acc + (c.calculatedSavings || 0), 0);
       const totalEff = regeneratedUseCases.reduce((acc, c) => acc + (c.calculatedEfficiency || 0), 0);
       setCumulativeROI({ revenue: totalRev, savings: totalSav, efficiency: totalEff });
-      
+
       console.log('✅ Updated ROI:', { revenue: totalRev, savings: totalSav, efficiency: totalEff });
     }
   }, [isReady, painPointsLoaded, painPoints, savedUseCaseStates]);
@@ -427,7 +428,7 @@ export default function Home() {
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [currentUseCaseIndex, setCurrentUseCaseIndex] = useState(0);
-  
+
   // Note: We don't load savedUseCases directly anymore
   // Instead, we merge savedUseCaseStates when generating use cases from pain points
 
@@ -451,11 +452,11 @@ export default function Home() {
     console.log('Current step:', step);
     console.log('Pain points:', painPoints.length);
     console.log('Use cases:', useCases.length);
-    
+
     setIsSaving(true);
     try {
       let savedSomething = false;
-      
+
       // Delete removed pain points first (only those that exist in database)
       if (deletedPainPointIds.length > 0) {
         const dbPainPointIds = deletedPainPointIds.filter(id => {
@@ -464,7 +465,7 @@ export default function Home() {
           const match = id.match(/^custom-(\d+)$/);
           return match && !isNaN(parseInt(match[1]));
         });
-        
+
         if (dbPainPointIds.length > 0) {
           console.log('Deleting', dbPainPointIds.length, 'pain points from database...');
           for (const id of dbPainPointIds) {
@@ -480,58 +481,58 @@ export default function Home() {
         }
         setDeletedPainPointIds([]);
       }
-      
+
       // Save pain points that are custom OR have been categorized (theme/priority/quadrant)
-      const pointsToSave = painPoints.filter(p => 
-        p.id.startsWith('custom-') || 
-        p.theme || 
-        p.priority || 
+      const pointsToSave = painPoints.filter(p =>
+        p.id.startsWith('custom-') ||
+        p.theme ||
+        p.priority ||
         p.quadrant ||
         !INITIAL_PAIN_POINTS.find(ip => ip.id === p.id && ip.response === p.response)
       );
-      
+
       if (pointsToSave.length > 0) {
         console.log('Saving', pointsToSave.length, 'pain points...');
         console.log('Points to save:', pointsToSave.map(p => ({ id: p.id, question: p.question, theme: p.theme, priority: p.priority, quadrant: p.quadrant })));
-        
+
         // Group into new vs existing
         const newPoints = [];
         const existingPoints = [];
-        
+
         for (const point of pointsToSave) {
           // Check if this pain point already exists in customPainPoints (loaded from database)
           // Match by ID only - don't match by question since custom points can have duplicate questions
           const existsInDB = customPainPoints.some(cp => cp.id === point.id);
-          
+
           if (existsInDB) {
             existingPoints.push(point);
           } else {
             newPoints.push(point);
           }
         }
-        
+
         console.log(`Categorized: ${newPoints.length} new, ${existingPoints.length} existing`);
-        
+
         // Save new and existing pain points in parallel for better performance
         const savePromises = [
-          ...newPoints.map(point => 
+          ...newPoints.map(point =>
             saveCustomPainPoint(point)
               .then(() => console.log(`✅ Saved new pain point ${point.id}`))
               .catch(error => console.error(`❌ Failed to save pain point ${point.id}:`, error))
           ),
-          ...existingPoints.map(point => 
+          ...existingPoints.map(point =>
             updateCustomPainPoint(point)
               .then(() => console.log(`✅ Updated pain point ${point.id}`))
               .catch(error => console.error(`❌ Failed to update pain point ${point.id}:`, error))
           )
         ];
-        
+
         await Promise.all(savePromises);
-        
+
         savedSomething = true;
         console.log('Pain points saved!');
       }
-      
+
       // Save use cases if they exist
       if (useCases.length > 0) {
         console.log('Saving use cases...');
@@ -539,18 +540,18 @@ export default function Home() {
         savedSomething = true;
         console.log('Use cases saved!');
       }
-      
+
       if (!savedSomething && useCases.length === 0) {
         // Early in workflow, nothing to save yet
         alert('Progress will be saved automatically as you work through the steps. Continue to the next step to start creating use cases.');
         setIsSaving(false);
         return;
       }
-      
+
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
       console.log('Save completed successfully!');
-      
+
     } catch (error) {
       console.error('Failed to save:', error);
       alert(`Failed to save progress: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
@@ -568,7 +569,7 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     setStep(next);
   };
-  
+
   // Breadcrumb navigation handler
   const handleBreadcrumbClick = (stepId: number) => {
     const stepMap: Record<number, Step> = {
@@ -587,36 +588,36 @@ export default function Home() {
   // Step 1: Welcome
   if (step === "welcome") {
 
-/*
-    // 🆕 NEW: Handler for "Start Discovery" button
-    const handleStartDiscovery = async () => {
-      try {
-        console.log('🚀 Starting new discovery...');
-        await createNewSession();
-        console.log('✅ New session created successfully');
-        nextStep("identify");
-      } catch (error) {
-        console.error('❌ Failed to create new session:', error);
-        alert('Failed to create new session. Please try again.');
-      }
-    };
-*/
+    /*
+        // 🆕 NEW: Handler for "Start Discovery" button
+        const handleStartDiscovery = async () => {
+          try {
+            console.log('🚀 Starting new discovery...');
+            await createNewSession();
+            console.log('✅ New session created successfully');
+            nextStep("identify");
+          } catch (error) {
+            console.error('❌ Failed to create new session:', error);
+            alert('Failed to create new session. Please try again.');
+          }
+        };
+    */
     // Handler for "Start Discovery" button
     const handleStartDiscovery = async () => {
       try {
         console.log('🚀 Starting new discovery...');
-        
+
         // Create brand new session
         const newSession = await createNewSession();
         console.log('✅ New session created:', newSession.id);
-        
+
         // IMPORTANT: Reset all UI state for fresh start
         setPainPoints(INITIAL_PAIN_POINTS);
         setUseCases([]);
         setCumulativeROI({ revenue: 0, savings: 0, efficiency: 0 });
         setDeletedPainPointIds([]);
         setHasUnsavedChanges(false);
-        
+
         // Navigate to first step
         nextStep("identify");
       } catch (error) {
@@ -624,38 +625,38 @@ export default function Home() {
         alert('Failed to create new session. Please try again.');
       }
     };
-//anil
-// 🆕 NEW: Handler to load the most recent session with data
-const handleContinueFromLast = async () => {
-  try {
-    console.log('🔍 Finding most recent session with data...');
-    
-    // Find first session that has pain points or use cases
-    for (const session of recentSessions) {
+    //anil
+    // 🆕 NEW: Handler to load the most recent session with data
+    const handleContinueFromLast = async () => {
       try {
-        const painPoints = await painPointsAPI.getBySession(session.id);
-        const useCases = await useCasesAPI.getBySession(session.id);
-        
-        if (painPoints.length > 0 || useCases.length > 0) {
-          console.log('✅ Found session with data:', session.id);
-          await loadSession(session.id);
-          nextStep("identify");
-          return;
-        } else {
-          console.log('⏭️ Skipping empty session:', session.id);
+        console.log('🔍 Finding most recent session with data...');
+
+        // Find first session that has pain points or use cases
+        for (const session of recentSessions) {
+          try {
+            const painPoints = await painPointsAPI.getBySession(session.id);
+            const useCases = await useCasesAPI.getBySession(session.id);
+
+            if (painPoints.length > 0 || useCases.length > 0) {
+              console.log('✅ Found session with data:', session.id);
+              await loadSession(session.id);
+              nextStep("identify");
+              return;
+            } else {
+              console.log('⏭️ Skipping empty session:', session.id);
+            }
+          } catch (error) {
+            console.error('Error checking session:', session.id, error);
+          }
         }
+
+        // No sessions with data found
+        alert('No previous workshops found with data. Please start a new discovery.');
       } catch (error) {
-        console.error('Error checking session:', session.id, error);
+        console.error('❌ Failed to load session:', error);
+        alert('Failed to load previous workshop. Please try again.');
       }
-    }
-    
-    // No sessions with data found
-    alert('No previous workshops found with data. Please start a new discovery.');
-  } catch (error) {
-    console.error('❌ Failed to load session:', error);
-    alert('Failed to load previous workshop. Please try again.');
-  }
-};
+    };
 
     // 🆕 NEW: Handler for clicking a recent session
     const handleLoadSession = async (sessionId: number) => {
@@ -677,14 +678,14 @@ const handleContinueFromLast = async () => {
         <main className="flex-1 flex flex-col">
           <div className="relative h-[40vh] w-full overflow-hidden">
             <div className="absolute inset-0 bg-black/60 z-10" />
-            <img 
-              src="/images/hero-bg.jpg" 
-              alt="Industrial Background" 
+            <img
+              src="/images/hero-bg.jpg"
+              alt="Industrial Background"
               className="w-full h-full object-cover grayscale"
             />
             <div className="absolute inset-0 z-20 flex items-center justify-center">
               <div className="container max-w-4xl text-center text-white space-y-6">
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/20 bg-white/10 backdrop-blur-sm text-sm font-medium"
@@ -692,15 +693,15 @@ const handleContinueFromLast = async () => {
                   <span className="w-2 h-2 rounded-full bg-[var(--color-buyframe-red)] animate-pulse" />
                   Live Discovery Session
                 </motion.div>
-                <motion.h1 
+                <motion.h1
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
                   className="text-5xl md:text-7xl font-bold tracking-tight"
                 >
-                  Visa Agentforce <br/> Discovery
+                  Visa Agentforce <br /> Discovery
                 </motion.h1>
-                <motion.p 
+                <motion.p
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
@@ -731,7 +732,7 @@ const handleContinueFromLast = async () => {
                   desc: "Create a phased roadmap that drives continuous license consumption"
                 }
               ].map((item, i) => (
-                <motion.div 
+                <motion.div
                   key={i}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -746,8 +747,8 @@ const handleContinueFromLast = async () => {
             </div>
 
             <div className="mt-16 flex justify-center items-center gap-4">
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 className="text-lg px-8 py-6 bg-[var(--color-buyframe-red)] hover:bg-[var(--color-buyframe-red)]/90 text-white rounded-none shadow-lg hover:shadow-xl transition-all"
                 //onClick={() => nextStep("identify")}
                 onClick={handleStartDiscovery}
@@ -755,10 +756,10 @@ const handleContinueFromLast = async () => {
                 Start Discovery <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
 
-               {/* Continue From Last Workshop Button - Only show if there are recent sessions */}
+              {/* Continue From Last Workshop Button - Only show if there are recent sessions */}
               {recentSessions.length > 0 && (
-                <Button 
-                  size="lg" 
+                <Button
+                  size="lg"
                   variant="outline"
                   className="text-lg px-8 py-6 border-2 border-[var(--color-buyframe-red)] text-[var(--color-buyframe-red)] hover:bg-[var(--color-buyframe-red)] hover:text-white rounded-none shadow-lg hover:shadow-xl transition-all"
                   // onClick={() => handleLoadSession(recentSessions[0].id)} 
@@ -769,8 +770,93 @@ const handleContinueFromLast = async () => {
               )}
             </div>
 
+            {/* Recent Discoveries List with Pagination */}
+            {(() => {
+              const pastSessions = recentSessions
+                .slice(1) // Skip the most recent one (available in Continue button)
+                .filter(session => (session.painPointsCount || 0) > 0 || (session.useCasesCount || 0) > 0);
 
-            
+              if (pastSessions.length === 0) return null;
+
+              const ITEMS_PER_PAGE = 5;
+              const totalPages = Math.ceil(pastSessions.length / ITEMS_PER_PAGE);
+              const startIndex = recentPageIndex * ITEMS_PER_PAGE;
+              const endIndex = startIndex + ITEMS_PER_PAGE;
+              const currentItems = pastSessions.slice(startIndex, endIndex);
+
+              return (
+                <div className="mt-12 max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <h3 className="text-sm font-semibold mb-4 text-center text-muted-foreground uppercase tracking-widest">Recent Discoveries</h3>
+
+                  <div className="space-y-3">
+                    {currentItems.map(session => (
+                      <div
+                        key={session.id}
+                        onClick={() => handleLoadSession(session.id)}
+                        className="flex items-center justify-between p-4 bg-card border border-border rounded-lg hover:border-[var(--color-buyframe-red)] hover:shadow-md cursor-pointer transition-all group"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="h-10 w-10 rounded-full bg-muted/50 flex items-center justify-center group-hover:bg-[var(--color-buyframe-red)]/10 transition-colors">
+                            <Clock className="h-5 w-5 text-muted-foreground group-hover:text-[var(--color-buyframe-red)] transition-colors" />
+                          </div>
+                          <div>
+                            <div className="font-medium text-base group-hover:text-[var(--color-buyframe-red)] transition-colors">
+                              {session.name}
+                            </div>
+                            <div className="text-xs text-muted-foreground flex gap-3 mt-1">
+                              <span className="flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+                                {new Date(session.updatedAt).toLocaleDateString()}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                                {session.painPointsCount || 0} pain points
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+                                {session.useCasesCount || 0} use cases
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-[var(--color-buyframe-red)] group-hover:translate-x-1 transition-all" />
+                      </div>
+                    ))}
+                  </div>
+
+                  {pastSessions.length > ITEMS_PER_PAGE && (
+                    <div className="flex items-center justify-between mt-4">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={recentPageIndex === 0}
+                        onClick={() => setRecentPageIndex(prev => Math.max(0, prev - 1))}
+                        className="h-8 px-2 text-xs"
+                      >
+                        Previous
+                      </Button>
+
+                      <div className="text-xs text-center text-muted-foreground">
+                        Showing {startIndex + 1}-{Math.min(endIndex, pastSessions.length)} of {pastSessions.length}
+                      </div>
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={endIndex >= pastSessions.length}
+                        onClick={() => setRecentPageIndex(prev => prev + 1)}
+                        className="h-8 px-2 text-xs"
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+
+
           </div>
         </main>
       </div>
@@ -809,7 +895,7 @@ const handleContinueFromLast = async () => {
                   };
                   setPainPoints([...painPoints, newPoint]);
                   setHasUnsavedChanges(true);
-                  
+
                   // Scroll to the category section
                   setTimeout(() => {
                     const headings = Array.from(document.querySelectorAll('h3'));
@@ -851,11 +937,11 @@ const handleContinueFromLast = async () => {
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <Textarea 
+                        <Textarea
                           className="min-h-[100px] bg-yellow-50 border-yellow-200 text-gray-800 font-medium text-sm"
                           value={point.response}
                           onChange={(e) => {
-                            const newPoints = painPoints.map(p => 
+                            const newPoints = painPoints.map(p =>
                               p.id === point.id ? { ...p, response: e.target.value } : p
                             );
                             setPainPoints(newPoints);
@@ -871,7 +957,7 @@ const handleContinueFromLast = async () => {
           </div>
 
           <div className="flex justify-between pt-8 border-t border-border">
-            <Button 
+            <Button
               variant="outline"
               size="lg"
               className="rounded-none"
@@ -879,7 +965,7 @@ const handleContinueFromLast = async () => {
             >
               Previous
             </Button>
-            <Button 
+            <Button
               size="lg"
               className="bg-black text-white hover:bg-black/90 rounded-none"
               onClick={() => nextStep("categorize")}
@@ -915,10 +1001,10 @@ const handleContinueFromLast = async () => {
                   <p className="font-medium">{point.response}</p>
                   <p className="text-sm text-muted-foreground">{point.question}</p>
                 </div>
-                <Select 
-                  value={point.theme} 
+                <Select
+                  value={point.theme}
                   onValueChange={(val: any) => {
-                    const newPoints = painPoints.map(p => 
+                    const newPoints = painPoints.map(p =>
                       p.id === point.id ? { ...p, theme: val } : p
                     );
                     setPainPoints(newPoints);
@@ -940,7 +1026,7 @@ const handleContinueFromLast = async () => {
           </div>
 
           <div className="flex justify-between pt-8 border-t border-border">
-            <Button 
+            <Button
               variant="outline"
               size="lg"
               className="rounded-none"
@@ -948,7 +1034,7 @@ const handleContinueFromLast = async () => {
             >
               Previous
             </Button>
-            <Button 
+            <Button
               size="lg"
               className="bg-black text-white hover:bg-black/90 rounded-none"
               onClick={() => nextStep("prioritize")}
@@ -975,14 +1061,14 @@ const handleContinueFromLast = async () => {
           </div>
 
           <div className="bg-background p-4 rounded-xl border border-border">
-            <QuadrantPrioritization 
-              items={painPoints} 
-              onUpdate={setPainPoints} 
+            <QuadrantPrioritization
+              items={painPoints}
+              onUpdate={setPainPoints}
             />
           </div>
 
           <div className="flex justify-between pt-8 border-t border-border">
-            <Button 
+            <Button
               variant="outline"
               size="lg"
               className="rounded-none"
@@ -990,7 +1076,7 @@ const handleContinueFromLast = async () => {
             >
               Previous
             </Button>
-            <Button 
+            <Button
               size="lg"
               className="bg-black text-white hover:bg-black/90 rounded-none"
               onClick={() => {
@@ -999,10 +1085,10 @@ const handleContinueFromLast = async () => {
                   const baseline = BASELINE_ROI_PROJECTIONS[p.id as keyof typeof BASELINE_ROI_PROJECTIONS];
                   const useCaseId = `uc-${p.id}`;
                   const savedState = savedUseCaseStates.get(useCaseId);
-                  
+
                   // Determine if saved priority is a backlog priority (P1, P2, P3) or quadrant priority (H1, H2, TBD)
                   const isBacklogPriority = savedState?.priority && ['P1', 'P2', 'P3'].includes(savedState.priority);
-                  
+
                   if (p.id.startsWith('custom-')) {
                     console.log(`🔍 Custom pain point ${p.id}:`, {
                       useCaseId,
@@ -1012,7 +1098,7 @@ const handleContinueFromLast = async () => {
                       willSetBacklogPriority: isBacklogPriority ? savedState.priority : undefined
                     });
                   }
-                  
+
                   return {
                     id: useCaseId,
                     painPointId: p.id,
@@ -1024,12 +1110,12 @@ const handleContinueFromLast = async () => {
                     //integration: baseline?.integration || "",
 
                     //anil
-                    name: savedState?.name || baseline?.name || p.response,  
-                    category: savedState?.category || p.category,  
-                    problem: savedState?.problem || baseline?.problem || p.response,  
-                    agentRole: savedState?.agentRole || baseline?.agentRole || "",  
-                    dataRequired: savedState?.dataRequired || baseline?.dataRequired || "",  
-                    integration: savedState?.integration || baseline?.integration || "",  
+                    name: savedState?.name || baseline?.name || p.response,
+                    category: savedState?.category || p.category,
+                    problem: savedState?.problem || baseline?.problem || p.response,
+                    agentRole: savedState?.agentRole || baseline?.agentRole || "",
+                    dataRequired: savedState?.dataRequired || baseline?.dataRequired || "",
+                    integration: savedState?.integration || baseline?.integration || "",
 
                     revenueImpact: baseline?.revenueImpact || "",
                     costSavings: baseline?.costSavings || "",
@@ -1055,7 +1141,7 @@ const handleContinueFromLast = async () => {
                   const newUseCases = painPoints.map(generateUseCaseFromPainPoint);
                   console.log('✅ Initial generation: Created', newUseCases.length, 'use cases');
                   setUseCases(newUseCases);
-                  
+
                   // Initialize cumulative ROI
                   const totalRev = newUseCases.reduce((acc, c) => acc + (c.calculatedRevenue || 0), 0);
                   const totalSav = newUseCases.reduce((acc, c) => acc + (c.calculatedSavings || 0), 0);
@@ -1065,14 +1151,14 @@ const handleContinueFromLast = async () => {
                   // Smart merge: Preserve edits, add new, remove deleted, update metadata
                   const existingUseCaseMap = new Map(useCases.map(uc => [uc.painPointId, uc]));
                   const currentPainPointIds = new Set(painPoints.map(p => p.id));
-                  
+
                   const mergedUseCases = painPoints.map(p => {
                     const existing = existingUseCaseMap.get(p.id);
-                    
+
                     if (existing) {
                       // Smart merge: Update metadata from pain point, preserve user-edited financial data
                       const baseline = BASELINE_ROI_PROJECTIONS[p.id as keyof typeof BASELINE_ROI_PROJECTIONS];
-                      
+
                       console.log(`✅ Smart merge for pain point: ${p.id} - updating metadata, preserving financial edits`);
                       return {
                         ...existing,
@@ -1091,17 +1177,17 @@ const handleContinueFromLast = async () => {
                       return generateUseCaseFromPainPoint(p);
                     }
                   });
-                  
+
                   // Log removed use cases
                   useCases.forEach(uc => {
                     if (!currentPainPointIds.has(uc.painPointId)) {
                       console.log(`➖ Removing use case for deleted pain point: ${uc.painPointId}`);
                     }
                   });
-                  
+
                   console.log(`✅ Smart merge complete: ${mergedUseCases.length} use cases (${mergedUseCases.length - useCases.length} added, ${useCases.length - mergedUseCases.length} removed)`);
                   setUseCases(mergedUseCases);
-                  
+
                   // Recalculate cumulative ROI
                   const totalRev = mergedUseCases.reduce((acc, c) => acc + (c.calculatedRevenue || 0), 0);
                   const totalSav = mergedUseCases.reduce((acc, c) => acc + (c.calculatedSavings || 0), 0);
@@ -1134,7 +1220,7 @@ const handleContinueFromLast = async () => {
         </div>
       );
     }
-    
+
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Header onSave={handleSave} isSaving={isSaving} lastSaved={lastSaved} hasUnsavedChanges={hasUnsavedChanges} />
@@ -1169,7 +1255,7 @@ const handleContinueFromLast = async () => {
                     <tr key={useCase.id} className="border-b border-border hover:bg-gray-50">
                       <td className="px-4 py-3 font-mono text-gray-500">{index + 1}</td>
                       <td className="px-4 py-3">
-                        <Input 
+                        <Input
                           value={useCase.name}
                           onChange={(e) => {
                             const newCases = [...useCases];
@@ -1180,7 +1266,7 @@ const handleContinueFromLast = async () => {
                         />
                       </td>
                       <td className="px-4 py-3">
-                        <Select 
+                        <Select
                           value={useCase.category}
                           onValueChange={(val) => {
                             const newCases = [...useCases];
@@ -1201,7 +1287,7 @@ const handleContinueFromLast = async () => {
                         </Select>
                       </td>
                       <td className="px-4 py-3">
-                        <Textarea 
+                        <Textarea
                           value={useCase.problem}
                           onChange={(e) => {
                             const newCases = [...useCases];
@@ -1212,7 +1298,7 @@ const handleContinueFromLast = async () => {
                         />
                       </td>
                       <td className="px-4 py-3">
-                        <Textarea 
+                        <Textarea
                           value={useCase.agentRole}
                           onChange={(e) => {
                             const newCases = [...useCases];
@@ -1223,7 +1309,7 @@ const handleContinueFromLast = async () => {
                         />
                       </td>
                       <td className="px-4 py-3">
-                        <Input 
+                        <Input
                           value={useCase.dataRequired}
                           onChange={(e) => {
                             const newCases = [...useCases];
@@ -1234,7 +1320,7 @@ const handleContinueFromLast = async () => {
                         />
                       </td>
                       <td className="px-4 py-3">
-                        <Input 
+                        <Input
                           value={useCase.integration}
                           onChange={(e) => {
                             const newCases = [...useCases];
@@ -1245,7 +1331,7 @@ const handleContinueFromLast = async () => {
                         />
                       </td>
                       <td className="px-4 py-3">
-                        <Input 
+                        <Input
                           type="number"
                           value={useCase.calculatedRevenue || 0}
                           onChange={(e) => {
@@ -1262,7 +1348,7 @@ const handleContinueFromLast = async () => {
                         />
                       </td>
                       <td className="px-4 py-3">
-                        <Input 
+                        <Input
                           type="number"
                           value={useCase.calculatedSavings || 0}
                           onChange={(e) => {
@@ -1279,7 +1365,7 @@ const handleContinueFromLast = async () => {
                         />
                       </td>
                       <td className="px-4 py-3">
-                        <Select 
+                        <Select
                           value={useCase.timeline}
                           onValueChange={(val) => {
                             const newCases = [...useCases];
@@ -1336,7 +1422,7 @@ const handleContinueFromLast = async () => {
 
             {/* Navigation */}
             <div className="flex justify-between pt-8 border-t border-border">
-              <Button 
+              <Button
                 variant="outline"
                 size="lg"
                 className="rounded-none"
@@ -1344,7 +1430,7 @@ const handleContinueFromLast = async () => {
               >
                 Previous
               </Button>
-              <Button 
+              <Button
                 size="lg"
                 className="bg-black text-white hover:bg-black/90 rounded-none"
                 onClick={() => nextStep("roi")}
@@ -1374,12 +1460,12 @@ const handleContinueFromLast = async () => {
             {/* Your ROI Projection */}
             <div className="border border-black p-8 flex flex-col bg-white relative overflow-hidden shadow-xl ring-1 ring-black/5">
               <div className="absolute top-0 right-0 bg-[var(--color-buyframe-red)] text-white text-xs font-bold px-4 py-1.5 shadow-sm">YOUR PROJECTION</div>
-              
+
               <div className="text-[var(--color-buyframe-red)] font-bold text-2xl mb-1">Currencycloud</div>
               <div className="text-xs text-muted-foreground mb-10 font-medium tracking-wide uppercase">FinTech • Cross-Border Payments (VISA-owned)</div>
-              
+
               <div className="font-bold text-xl mb-10 leading-snug">"Unlocking <span className="text-[var(--color-buyframe-red)]">${(cumulativeROI.revenue + cumulativeROI.savings).toLocaleString()}</span> in annual value through Agentforce"</div>
-              
+
               <div className="space-y-8 flex-1">
                 <div>
                   <div className="text-[var(--color-buyframe-red)] text-xs font-bold uppercase tracking-widest mb-3 text-center">The Challenge</div>
@@ -1393,7 +1479,7 @@ const handleContinueFromLast = async () => {
                     )}
                   </div>
                 </div>
-                
+
                 <div>
                   <div className="text-[var(--color-buyframe-red)] text-xs font-bold uppercase tracking-widest mb-3 text-center">What We Discovered</div>
                   <div className="text-sm text-muted-foreground text-center space-y-3">
@@ -1407,7 +1493,7 @@ const handleContinueFromLast = async () => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="mt-10 border-2 border-[var(--color-buyframe-red)] bg-red-50/50 p-6 relative">
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-white px-2 text-[var(--color-buyframe-red)] text-xs font-bold uppercase tracking-widest">Projected Result</div>
                 <div className="text-center space-y-3">
@@ -1423,7 +1509,7 @@ const handleContinueFromLast = async () => {
                   <div className="pt-2 text-[10px] text-muted-foreground italic">Based on {useCases.length} prioritized use cases</div>
                 </div>
               </div>
-              
+
               {/* Calculation Breakdown */}
               {useCases.length > 0 && (
                 <div className="mt-6 border border-gray-300 bg-gray-50 p-4">
@@ -1446,7 +1532,7 @@ const handleContinueFromLast = async () => {
           </div>
 
           <div className="flex justify-between pt-8 border-t border-border">
-            <Button 
+            <Button
               variant="outline"
               size="lg"
               className="rounded-none"
@@ -1454,7 +1540,7 @@ const handleContinueFromLast = async () => {
             >
               Previous
             </Button>
-            <Button 
+            <Button
               size="lg"
               className="bg-black text-white hover:bg-black/90 rounded-none"
               onClick={() => nextStep("backlog")}
@@ -1480,7 +1566,7 @@ const handleContinueFromLast = async () => {
             <p className="text-muted-foreground text-lg">Drag and drop use cases to prioritize them for implementation.</p>
           </div>
 
-          <BacklogPrioritization 
+          <BacklogPrioritization
             items={useCases}
             onUpdate={(updatedUseCases) => {
               setUseCases(updatedUseCases);
@@ -1493,7 +1579,7 @@ const handleContinueFromLast = async () => {
           />
 
           <div className="flex justify-between pt-8 border-t border-border">
-            <Button 
+            <Button
               variant="outline"
               size="lg"
               className="rounded-none"
@@ -1501,7 +1587,7 @@ const handleContinueFromLast = async () => {
             >
               Previous
             </Button>
-            <Button 
+            <Button
               size="lg"
               className="bg-black text-white hover:bg-black/90 rounded-none"
               onClick={() => nextStep("next-steps")}
@@ -1569,7 +1655,7 @@ const handleContinueFromLast = async () => {
           </div>
 
           <div className="flex justify-center pt-8">
-            <Button 
+            <Button
               variant="outline"
               size="lg"
               className="mr-4 rounded-none"
@@ -1577,7 +1663,7 @@ const handleContinueFromLast = async () => {
             >
               Previous
             </Button>
-            <Button 
+            <Button
               size="lg"
               className="text-lg px-12 py-8 bg-[var(--color-buyframe-red)] hover:bg-[var(--color-buyframe-red)]/90 text-white rounded-none shadow-xl hover:shadow-2xl transition-all"
               onClick={() => window.print()}

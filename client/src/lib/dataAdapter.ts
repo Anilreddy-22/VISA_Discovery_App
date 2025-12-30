@@ -128,7 +128,7 @@ export function uiToAPIUseCase(uiUseCase: UIUseCase) {
   // Prioritize backlogPriority (P1, P2, P3) over earlier priority (H1, H2, TBD)
   // This ensures backlog step changes override quadrant step priorities
   const priority = (uiUseCase as any).backlogPriority || uiUseCase.priority;
-  
+
   return {
     useCaseId: uiUseCase.id,
     priority: priority,
@@ -136,7 +136,7 @@ export function uiToAPIUseCase(uiUseCase: UIUseCase) {
     revenue: uiUseCase.calculatedRevenue,
     savings: uiUseCase.calculatedSavings,
     timeline: uiUseCase.timeline,
-     
+
     // anil ADD THESE 6 FIELDS:
     name: uiUseCase.name,
     category: uiUseCase.category,
