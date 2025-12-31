@@ -829,10 +829,6 @@ export default function Home() {
                                 {new Date(session.updatedAt).toLocaleDateString()} {new Date(session.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               </span>
                               <span className="flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
-                                {session.painPointsCount || 0} pain points
-                              </span>
-                              <span className="flex items-center gap-1">
                                 <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
                                 {session.useCasesCount || 0} use cases
                               </span>
