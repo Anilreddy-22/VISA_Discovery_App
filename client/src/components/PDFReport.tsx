@@ -161,7 +161,7 @@ export function PDFReportComponent({ data }: { data: PDFReportData }) {
         .pain-point-item {
           font-size: 13px;
           margin-bottom: 8px;
-          color: #374151;
+          color: #111827;
           line-height: 1.4;
         }
 
@@ -199,12 +199,12 @@ export function PDFReportComponent({ data }: { data: PDFReportData }) {
         .usecase-item {
           font-size: 11px;
           margin-bottom: 6px;
-          color: #4b5563;
+          color: #111827;
           line-height: 1.3;
         }
 
         .projected-result-box {
-          border: 3px solid #dc2626;
+          border: 2px solid #dc2626;
           padding: 40px 50px;
           margin: 25px 0 35px 0;
           text-align: center;
@@ -219,7 +219,7 @@ export function PDFReportComponent({ data }: { data: PDFReportData }) {
           transform: translateX(-50%);
           background: white;
           padding: 0 15px;
-          font-size: 10px;
+          font-size: 12px;
           font-weight: 700;
           color: #dc2626;
           letter-spacing: 3px;
@@ -290,7 +290,7 @@ export function PDFReportComponent({ data }: { data: PDFReportData }) {
 
         .roi-table td {
           padding: 14px 0;
-          color: #4b5563;
+          color: #111827;
           border: none;
           border-bottom: 1px solid #f3f4f6;
         }
@@ -313,7 +313,7 @@ export function PDFReportComponent({ data }: { data: PDFReportData }) {
 
         .use-cases-table td {
           padding: 8px 6px;
-          color: #4b5563;
+          color: #111827;
           border: 1px solid #e5e7eb;
         }
 
@@ -357,16 +357,11 @@ export function PDFReportComponent({ data }: { data: PDFReportData }) {
               <div key={theme} className="theme-section">
                 <div className="theme-title">{theme}</div>
                 <div className="pain-point-list">
-                  {painPoints.slice(0, 5).map((pp, idx) => (
+                  {painPoints.map((pp, idx) => (
                     <div key={idx} className="pain-point-item">
                       {idx + 1}. {pp.response}
                     </div>
                   ))}
-                  {painPoints.length > 5 && (
-                    <div className="pain-point-item" style={{ fontStyle: 'italic', color: '#9CA3AF' }}>
-                      +{painPoints.length - 5} more items
-                    </div>
-                  )}
                 </div>
               </div>
             ))
@@ -390,16 +385,11 @@ export function PDFReportComponent({ data }: { data: PDFReportData }) {
                 </div>
                 {useCases.length > 0 ? (
                   <div className="usecase-list">
-                    {useCases.slice(0, 3).map((uc, idx) => (
+                    {useCases.map((uc, idx) => (
                       <div key={idx} className="usecase-item">
                         {idx + 1}. {uc.name}
                       </div>
                     ))}
-                    {useCases.length > 3 && (
-                      <div className="usecase-item" style={{ fontStyle: 'italic', color: '#9CA3AF' }}>
-                        +{useCases.length - 3} more items
-                      </div>
-                    )}
                   </div>
                 ) : (
                   <div className="usecase-item" style={{ color: '#9CA3AF', fontSize: '9px' }}>No items</div>
@@ -440,14 +430,14 @@ export function PDFReportComponent({ data }: { data: PDFReportData }) {
               <tbody>
                 {data.useCases.map((uc, idx) => (
                   <tr key={idx}>
-                    <td style={{ textAlign: 'left', fontWeight: '400', fontSize: '12px', color: '#4b5563' }}>{uc.name}</td>
-                    <td style={{ fontWeight: '700', color: '#1f2937', textAlign: 'right', width: '150px', fontSize: '12px' }}>
+                    <td style={{ textAlign: 'left', fontWeight: '400', fontSize: '13px', color: '#111827' }}>{uc.name}</td>
+                    <td style={{ fontWeight: '700', color: '#1f2937', textAlign: 'right', width: '150px', fontSize: '13px' }}>
                       ${((uc.calculatedRevenue || 0) + (uc.calculatedSavings || 0)).toLocaleString()}
                     </td>
                   </tr>
                 ))}
                 <tr style={{ borderTop: '2px solid #e5e7eb' }}>
-                  <td style={{ fontWeight: '700', color: '#1f2937', paddingTop: '16px', paddingBottom: '0', fontSize: '12px' }}>
+                  <td style={{ fontWeight: '700', color: '#1f2937', paddingTop: '16px', paddingBottom: '0', fontSize: '13px' }}>
                     TOTAL ANNUAL ROI
                   </td>
                   <td style={{ fontWeight: '700', color: '#dc2626', fontSize: '15px', textAlign: 'right', width: '150px', paddingTop: '16px', paddingBottom: '0' }}>
@@ -464,32 +454,91 @@ export function PDFReportComponent({ data }: { data: PDFReportData }) {
           <h1 className="page-title">The Use Case Backlog</h1>
           <div className="page-number">Page 4</div>
 
-          <table className="use-cases-table">
-            <thead>
-              <tr>
-                <th style={{ width: "5%" }}>#</th>
-                <th style={{ width: "50%" }}>Use Case Name</th>
-                <th style={{ width: "15%" }}>Category</th>
-                <th style={{ width: "15%" }}>Priority</th>
-                <th style={{ width: "15%" }}>Revenue</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.useCases.map((uc, idx) => (
-                <tr key={idx}>
-                  <td className="row-number">{idx + 1}</td>
-                  <td>{uc.name}</td>
-                  <td>
-                    <span className="category">{uc.category || "N/A"}</span>
-                  </td>
-                  <td>
-                    <span className="priority-h1">{uc.priority || "H1"}</span>
-                  </td>
-                  <td>${((uc.calculatedRevenue || 0) + (uc.calculatedSavings || 0)).toLocaleString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div style={{ marginBottom: '24px', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '20px', backgroundColor: '#ffffff' }}>
+            {/* P1 Quick Wins Section */}
+            {(() => {
+              const p1Cases = data.useCases.filter(uc => uc.backlogPriority === 'P1');
+              const p1Impact = p1Cases.reduce((sum, uc) => sum + (uc.calculatedRevenue || 0) + (uc.calculatedSavings || 0), 0);
+              return p1Cases.length > 0 ? (
+                <div style={{ marginBottom: '32px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '12px' }}>
+                    <div>
+                      <div style={{ fontSize: '11px', color: '#6b7280', fontWeight: '600', marginBottom: '6px', letterSpacing: '0.5px' }}>JAN 31ST - APRIL 30TH</div>
+                      <div style={{ fontSize: '20px', fontWeight: '700', color: '#1f2937' }}>P1 Quick Wins</div>
+                    </div>
+                  </div>
+                  <div style={{ paddingLeft: '8px', marginBottom: '12px' }}>
+                    {p1Cases.map((uc, idx) => (
+                      <div key={idx} style={{ marginBottom: '10px', fontSize: '13px', color: '#111827', lineHeight: '1.5' }}>
+                        {uc.name}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ textAlign: 'right', paddingTop: '12px', borderTop: '2px solid #e5e7eb' }}>
+                    <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '6px' }}>Projected Impact</div>
+                    <div style={{ fontSize: '24px', fontWeight: '700', color: '#dc2626' }}>${p1Impact.toLocaleString()}</div>
+                  </div>
+                  <div style={{ marginTop: '12px', borderBottom: '1px solid #e5e7eb' }} />
+                </div>
+              ) : null;
+            })()}
+
+            {/* P2 Strategic Section */}
+            {(() => {
+              const p2Cases = data.useCases.filter(uc => uc.backlogPriority === 'P2');
+              const p2Impact = p2Cases.reduce((sum, uc) => sum + (uc.calculatedRevenue || 0) + (uc.calculatedSavings || 0), 0);
+              return p2Cases.length > 0 ? (
+                <div style={{ marginBottom: '32px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '12px' }}>
+                    <div>
+                      <div style={{ fontSize: '11px', color: '#6b7280', fontWeight: '600', marginBottom: '6px', letterSpacing: '0.5px' }}>H2 / TBD</div>
+                      <div style={{ fontSize: '20px', fontWeight: '700', color: '#1f2937' }}>P2 Strategic</div>
+                    </div>
+                  </div>
+                  <div style={{ paddingLeft: '8px', marginBottom: '12px' }}>
+                    {p2Cases.map((uc, idx) => (
+                      <div key={idx} style={{ marginBottom: '10px', fontSize: '13px', color: '#111827', lineHeight: '1.5' }}>
+                        {uc.name}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ textAlign: 'right', paddingTop: '12px', borderTop: '2px solid #e5e7eb' }}>
+                    <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '6px' }}>Projected Impact</div>
+                    <div style={{ fontSize: '24px', fontWeight: '700', color: '#dc2626' }}>${p2Impact.toLocaleString()}</div>
+                  </div>
+                  <div style={{ marginTop: '12px', borderBottom: '1px solid #e5e7eb' }} />
+                </div>
+              ) : null;
+            })()}
+
+            {/* P3 Future Section */}
+            {(() => {
+              const p3Cases = data.useCases.filter(uc => uc.backlogPriority === 'P3');
+              const p3Impact = p3Cases.reduce((sum, uc) => sum + (uc.calculatedRevenue || 0) + (uc.calculatedSavings || 0), 0);
+              return p3Cases.length > 0 ? (
+                <div style={{ marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '12px' }}>
+                    <div>
+                      <div style={{ fontSize: '11px', color: '#6b7280', fontWeight: '600', marginBottom: '6px', letterSpacing: '0.5px' }}>TBD</div>
+                      <div style={{ fontSize: '20px', fontWeight: '700', color: '#1f2937' }}>P3 Future</div>
+                    </div>
+                  </div>
+                  <div style={{ paddingLeft: '8px', marginBottom: '12px' }}>
+                    {p3Cases.map((uc, idx) => (
+                      <div key={idx} style={{ marginBottom: '10px', fontSize: '13px', color: '#111827', lineHeight: '1.5' }}>
+                        {uc.name}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ textAlign: 'right', paddingTop: '12px', borderTop: '2px solid #e5e7eb' }}>
+                    <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '6px' }}>Projected Impact</div>
+                    <div style={{ fontSize: '24px', fontWeight: '700', color: '#dc2626' }}>${p3Impact.toLocaleString()}</div>
+                  </div>
+                  <div style={{ marginTop: '12px', borderBottom: '1px solid #e5e7eb' }} />
+                </div>
+              ) : null;
+            })()}
+          </div>
         </div>
       </div>
     </>

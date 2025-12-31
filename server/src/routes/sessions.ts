@@ -25,6 +25,7 @@ router.get('/', async (req, res) => {
     })
       .from(schema.sessions)
       .leftJoin(schema.users, eq(schema.sessions.createdBy, schema.users.id))
+      .where(eq(schema.sessions.createdBy, req.user!.userId))
       .orderBy(desc(schema.sessions.updatedAt));
 
     res.json(sessions);

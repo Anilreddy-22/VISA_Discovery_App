@@ -231,7 +231,7 @@ const Header = ({ onSave, isSaving, lastSaved, hasUnsavedChanges }: {
                   variant={hasUnsavedChanges ? "default" : "outline"}
                   size="sm"
                   onClick={onSave}
-                  disabled={isSaving}
+                  disabled={isSaving || !hasUnsavedChanges}
                   className={hasUnsavedChanges ? "bg-red-600 hover:bg-red-700 text-white" : ""}
                 >
                   {isSaving ? "Saving..." : hasUnsavedChanges ? "Save Progress" : "Saved"}
@@ -439,13 +439,6 @@ export default function Home() {
   // Note: We don't load savedUseCases directly anymore
   // Instead, we merge savedUseCaseStates when generating use cases from pain points
 
-  // Track unsaved changes
-  useEffect(() => {
-    if (useCases.length > 0 || painPoints.length > INITIAL_PAIN_POINTS.length) {
-      setHasUnsavedChanges(true);
-    }
-  }, [useCases, painPoints]);
-
   // ROI State
   const [cumulativeROI, setCumulativeROI] = useState({
     revenue: 0,
@@ -454,7 +447,16 @@ export default function Home() {
   });
 
   // PDF Download handler
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
+    // Auto-save use cases before generating PDF to ensure current state is captured
+    try {
+      console.log('💾 Auto-saving use cases before PDF generation...');
+      await batchSaveUseCases(useCases);
+      console.log('✅ Use cases saved successfully');
+    } catch (error) {
+      console.error('❌ Failed to save use cases:', error);
+    }
+    
     // Open print dialog to save as PDF
     window.print();
   };
@@ -514,12 +516,16 @@ export default function Home() {
 
         for (const point of pointsToSave) {
           // Check if this pain point already exists in customPainPoints (loaded from database)
-          // Match by ID only - don't match by question since custom points can have duplicate questions
+          // System pain points (AUDREY_PAIN_POINTS) with quadrant/theme/priority need to be saved as NEW custom points
+          // Custom pain points are matched by ID to determine if they need update or create
+          const isSystemPoint = INITIAL_PAIN_POINTS.some(ip => ip.id === point.id);
           const existsInDB = customPainPoints.some(cp => cp.id === point.id);
 
           if (existsInDB) {
             existingPoints.push(point);
           } else {
+            // System points with assignments need to be saved as new custom points
+            // They will get a new database ID but preserve their system ID for reference
             newPoints.push(point);
           }
         }
@@ -820,7 +826,7 @@ export default function Home() {
                             <div className="text-xs text-muted-foreground flex gap-3 mt-1">
                               <span className="flex items-center gap-1">
                                 <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
-                                {new Date(session.updatedAt).toLocaleDateString()}
+                                {new Date(session.updatedAt).toLocaleDateString()} {new Date(session.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               </span>
                               <span className="flex items-center gap-1">
                                 <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
@@ -1022,6 +1028,7 @@ export default function Home() {
                       p.id === point.id ? { ...p, theme: val } : p
                     );
                     setPainPoints(newPoints);
+                    setHasUnsavedChanges(true);
                   }}
                 >
                   <SelectTrigger className="w-[140px]">
@@ -1077,7 +1084,10 @@ export default function Home() {
           <div className="bg-background p-4 rounded-xl border border-border">
             <QuadrantPrioritization
               items={painPoints}
-              onUpdate={setPainPoints}
+              onUpdate={(updated) => {
+                setPainPoints(updated);
+                setHasUnsavedChanges(true);
+              }}
             />
           </div>
 
@@ -1292,6 +1302,7 @@ export default function Home() {
                             const newCases = [...useCases];
                             newCases[index].name = e.target.value;
                             setUseCases(newCases);
+                            setHasUnsavedChanges(true);
                           }}
                           className="min-w-[200px]"
                         />
@@ -1303,6 +1314,7 @@ export default function Home() {
                             const newCases = [...useCases];
                             newCases[index].category = val;
                             setUseCases(newCases);
+                            setHasUnsavedChanges(true);
                           }}
                         >
                           <SelectTrigger className="w-[120px]">
@@ -1324,6 +1336,7 @@ export default function Home() {
                             const newCases = [...useCases];
                             newCases[index].problem = e.target.value;
                             setUseCases(newCases);
+                            setHasUnsavedChanges(true);
                           }}
                           className="min-h-[60px] min-w-[250px]"
                         />
@@ -1335,6 +1348,7 @@ export default function Home() {
                             const newCases = [...useCases];
                             newCases[index].agentRole = e.target.value;
                             setUseCases(newCases);
+                            setHasUnsavedChanges(true);
                           }}
                           className="min-h-[60px] min-w-[250px]"
                         />
@@ -1346,6 +1360,7 @@ export default function Home() {
                             const newCases = [...useCases];
                             newCases[index].dataRequired = e.target.value;
                             setUseCases(newCases);
+                            setHasUnsavedChanges(true);
                           }}
                           className="min-w-[200px]"
                         />
@@ -1357,6 +1372,7 @@ export default function Home() {
                             const newCases = [...useCases];
                             newCases[index].integration = e.target.value;
                             setUseCases(newCases);
+                            setHasUnsavedChanges(true);
                           }}
                           className="min-w-[200px]"
                         />
@@ -1370,6 +1386,7 @@ export default function Home() {
                             const newCases = [...useCases];
                             newCases[index].calculatedRevenue = val;
                             setUseCases(newCases);
+                            setHasUnsavedChanges(true);
                             // Recalculate cumulative
                             const totalRev = newCases.reduce((acc, c) => acc + (c.calculatedRevenue || 0), 0);
                             const totalSav = newCases.reduce((acc, c) => acc + (c.calculatedSavings || 0), 0);
@@ -1387,6 +1404,7 @@ export default function Home() {
                             const newCases = [...useCases];
                             newCases[index].calculatedSavings = val;
                             setUseCases(newCases);
+                            setHasUnsavedChanges(true);
                             // Recalculate cumulative
                             const totalRev = newCases.reduce((acc, c) => acc + (c.calculatedRevenue || 0), 0);
                             const totalSav = newCases.reduce((acc, c) => acc + (c.calculatedSavings || 0), 0);
@@ -1402,6 +1420,7 @@ export default function Home() {
                             const newCases = [...useCases];
                             newCases[index].timeline = val;
                             setUseCases(newCases);
+                            setHasUnsavedChanges(true);
                           }}
                         >
                           <SelectTrigger className="w-[120px]">
@@ -1601,6 +1620,7 @@ export default function Home() {
             items={useCases}
             onUpdate={(updatedUseCases) => {
               setUseCases(updatedUseCases);
+              setHasUnsavedChanges(true);
               // Recalculate cumulative ROI
               const totalRev = updatedUseCases.reduce((acc, c) => acc + (c.calculatedRevenue || 0), 0);
               const totalSav = updatedUseCases.reduce((acc, c) => acc + (c.calculatedSavings || 0), 0);

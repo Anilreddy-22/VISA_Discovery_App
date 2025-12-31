@@ -142,27 +142,32 @@ export function BacklogPrioritization({
       const bucketId = over.id as string;
       const useCaseId = active.id as string;
 
-      // Map bucket IDs to backlog priority values
+      // Map bucket IDs to backlog priority values and quadrant
       let backlogPriority: UseCase['backlogPriority'] | undefined = undefined;
+      let quadrant: string | undefined = undefined;
 
       switch (bucketId) {
         case 'p1':
           backlogPriority = 'P1';
+          quadrant = 'Quick Wins';
           break;
         case 'p2':
           backlogPriority = 'P2';
+          quadrant = 'Major Projects';
           break;
         case 'p3':
           backlogPriority = 'P3';
+          quadrant = 'Fill-in';
           break;
         case 'backlog':
           backlogPriority = undefined;
+          quadrant = undefined;
           break;
       }
 
       const updatedItems = items.map(item =>
         item.id === useCaseId
-          ? { ...item, backlogPriority }
+          ? { ...item, backlogPriority, quadrant }
           : item
       );
 
@@ -173,7 +178,7 @@ export function BacklogPrioritization({
   const handleReturnToBacklog = (useCaseId: string) => {
     const updatedItems = items.map(item =>
       item.id === useCaseId
-        ? { ...item, backlogPriority: undefined }
+        ? { ...item, backlogPriority: undefined, quadrant: undefined }
         : item
     );
     onUpdate(updatedItems);
