@@ -388,7 +388,26 @@ export const WorkshopProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     try {
       const apiData = uiToAPIUseCase(useCase);
-      await useCasesAPI.update(sessionId, apiData.useCaseId, apiData);
+      const saved = await useCasesAPI.update(sessionId, apiData.useCaseId, apiData);
+      
+      // Update savedUseCaseStates so regeneration uses the latest values
+      setSavedUseCaseStates(prev => {
+        const next = new Map(prev);
+        next.set(saved.useCaseId, {
+          priority: saved.priority,
+          quadrant: saved.quadrant,
+          revenue: saved.revenue,
+          savings: saved.savings,
+          timeline: saved.timeline,
+          name: saved.name,
+          category: saved.category,
+          problem: saved.problem,
+          agentRole: saved.agentRole,
+          dataRequired: saved.dataRequired,
+          integration: saved.integration,
+        });
+        return next;
+      });
     } catch (error) {
       console.error('Failed to save use case:', error);
       // Don't throw - we don't want to break the UI flow
@@ -411,6 +430,31 @@ export const WorkshopProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       console.log('🔵 Calling API with sessionId:', sessionId);
       const result = await useCasesAPI.batchUpdate(sessionId, updates);
       console.log('✅ Save successful! Result:', result);
+
+      // Merge the saved use cases back into savedUseCaseStates
+      // This prevents the regeneration effect from overwriting the just-saved values
+      setSavedUseCaseStates(prev => {
+        const next = new Map(prev);
+        (result || []).forEach((saved: any) => {
+          if (!saved || !saved.useCaseId) return;
+          next.set(saved.useCaseId, {
+            priority: saved.priority,
+            quadrant: saved.quadrant,
+            revenue: saved.revenue,
+            savings: saved.savings,
+            timeline: saved.timeline,
+            name: saved.name,
+            category: saved.category,
+            problem: saved.problem,
+            agentRole: saved.agentRole,
+            dataRequired: saved.dataRequired,
+            integration: saved.integration,
+          });
+        });
+        console.log('✅ Updated savedUseCaseStates with', result?.length || 0, 'use cases');
+        return next;
+      });
+
       return result;
     } catch (error) {
       console.error('❌ Failed to batch save use cases:', error);

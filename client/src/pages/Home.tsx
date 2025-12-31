@@ -351,9 +351,14 @@ export default function Home() {
 
   const [useCases, setUseCases] = useState<UseCase[]>([]);
   //anil
+  // 🆕 NEW: Track if we've already regenerated from saved state to avoid overwriting user edits
+  const [hasRegenerated, setHasRegenerated] = useState(false);
+
   // 🆕 NEW: Regenerate use cases from saved data when savedUseCaseStates loads
   useEffect(() => {
-    if (isReady && painPointsLoaded && painPoints.length > 0 && savedUseCaseStates.size > 0) {
+    // Only regenerate once when savedUseCaseStates first loads
+    // Don't regenerate again even if savedUseCaseStates updates (e.g., after save)
+    if (isReady && painPointsLoaded && painPoints.length > 0 && savedUseCaseStates.size > 0 && !hasRegenerated) {
       console.log('🔄 Regenerating use cases from saved data...');
       console.log('📊 savedUseCaseStates size:', savedUseCaseStates.size);
       console.log('📊 Current useCases length:', useCases.length);
@@ -412,6 +417,7 @@ export default function Home() {
       console.log('📊 Sample use case:', regeneratedUseCases[0]);
 
       setUseCases(regeneratedUseCases);
+      setHasRegenerated(true);
 
       // Update cumulative ROI
       const totalRev = regeneratedUseCases.reduce((acc, c) => acc + (c.calculatedRevenue || 0), 0);
@@ -421,7 +427,7 @@ export default function Home() {
 
       console.log('✅ Updated ROI:', { revenue: totalRev, savings: totalSav, efficiency: totalEff });
     }
-  }, [isReady, painPointsLoaded, painPoints, savedUseCaseStates]);
+  }, [isReady, painPointsLoaded, painPoints, savedUseCaseStates, hasRegenerated]);
 
   //const [useCases, setUseCases] = useState<UseCase[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -617,6 +623,7 @@ export default function Home() {
         setCumulativeROI({ revenue: 0, savings: 0, efficiency: 0 });
         setDeletedPainPointIds([]);
         setHasUnsavedChanges(false);
+        setHasRegenerated(false); // Reset regeneration flag for new session
 
         // Navigate to first step
         nextStep("identify");
