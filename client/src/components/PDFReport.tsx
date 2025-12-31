@@ -1,0 +1,497 @@
+import { UIUseCase, UIPainPoint } from "@/lib/dataAdapter";
+
+export interface PDFReportData {
+  painPoints: UIPainPoint[];
+  useCases: UIUseCase[];
+  cumulativeROI: { revenue: number; savings: number; efficiency: number };
+  companyName?: string;
+}
+
+/**
+ * Render PDF Report as HTML for print-to-PDF conversion
+ * Creates a 4-page professional report
+ */
+export function PDFReportComponent({ data }: { data: PDFReportData }) {
+  // Debug logging
+  console.log('📄 PDFReportComponent received data:', {
+    painPointsCount: data.painPoints.length,
+    painPointsByQuadrant: {
+      'Quick Wins': data.painPoints.filter(p => p.quadrant === 'Quick Wins').map(p => p.response),
+      'Major Projects': data.painPoints.filter(p => p.quadrant === 'Major Projects').map(p => p.response),
+      'Fill-in': data.painPoints.filter(p => p.quadrant === 'Fill-in').map(p => p.response),
+      'Money Pit': data.painPoints.filter(p => p.quadrant === 'Money Pit').map(p => p.response),
+    },
+    useCasesCount: data.useCases.length,
+    useCaseQuadrants: data.useCases.map(uc => ({ name: uc.name, quadrant: uc.quadrant })),
+    roi: data.cumulativeROI,
+    firstPainPoint: data.painPoints[0],
+    firstUseCase: data.useCases[0]
+  });
+
+  const formatCurrency = (value: number) => {
+    if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+    if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
+    return `$${value}`;
+  };
+
+  // Group pain points by theme
+  const themesMap = new Map<string, UIPainPoint[]>();
+  data.painPoints.forEach(pp => {
+    if (pp.theme) {
+      if (!themesMap.has(pp.theme)) {
+        themesMap.set(pp.theme, []);
+      }
+      themesMap.get(pp.theme)!.push(pp);
+    }
+  });
+
+  // Group use cases by quadrant
+  const quadrants = ["Quick Wins", "Major Projects", "Fill-in", "Money Pit"];
+  const quadrantMap = new Map(quadrants.map(q => [q, data.useCases.filter(uc => uc.quadrant === q)]));
+
+  // Top use cases by revenue
+  const topUseCases = [...data.useCases]
+    .sort((a, b) => (b.calculatedRevenue || 0) - (a.calculatedRevenue || 0))
+    .slice(0, 10);
+
+  return (
+    <>
+      <style>{`
+        @media print {
+          html, body {
+            width: 100%;
+            margin: 0;
+            padding: 0;
+          }
+          .pdf-report-container {
+            width: 100%;
+            display: block;
+          }
+          .pdf-page {
+            page-break-after: always;
+            page-break-inside: avoid;
+          }
+          .pdf-page:last-child {
+            page-break-after: avoid;
+          }
+          @page {
+            margin: 0;
+            size: auto;
+          }
+        }
+        
+        .pdf-report-container {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          color: #374151;
+          line-height: 1.4;
+        }
+
+        .pdf-page {
+          page-break-after: always;
+          page-break-inside: avoid;
+          padding: 30px;
+          background: white;
+          margin: 0;
+          position: relative;
+          min-height: auto;
+        }
+
+        .page-title {
+          font-size: 24px;
+          font-weight: 700;
+          color: #1f2937;
+          margin-bottom: 15px;
+          border-bottom: 3px solid #dc2626;
+          padding-bottom: 10px;
+        }
+
+        .page-number {
+          position: absolute;
+          bottom: 20px;
+          right: 30px;
+          font-size: 11px;
+          color: #9CA3AF;
+        }
+
+        .page-title {
+          font-size: 28px;
+          font-weight: 700;
+          color: #1f2937;
+          margin-bottom: 30px;
+          border-bottom: 3px solid #dc2626;
+          padding-bottom: 12px;
+        }
+
+        .page-number {
+          display: none;
+        }
+
+        h2 {
+          font-size: 14px;
+          font-weight: 600;
+          color: #1f2937;
+          margin-top: 15px;
+          margin-bottom: 8px;
+          border-left: 4px solid #dc2626;
+          padding-left: 10px;
+        }
+
+        .theme-section {
+          margin-bottom: 22px;
+          padding: 16px;
+          background: white;
+          border: 1px solid #e5e7eb;
+          border-radius: 0;
+        }
+
+        .theme-title {
+          font-size: 14px;
+          font-weight: 700;
+          color: #1f2937;
+          background: transparent;
+          padding: 0;
+          border-radius: 0;
+          margin-bottom: 12px;
+        }
+
+        .pain-point-list {
+          margin-left: 0;
+        }
+
+        .pain-point-item {
+          font-size: 13px;
+          margin-bottom: 8px;
+          color: #374151;
+          line-height: 1.4;
+        }
+
+        .quadrant-section {
+          margin-bottom: 18px;
+          padding: 14px;
+          background: white;
+          border: 1px solid #e5e7eb;
+          border-radius: 0;
+        }
+
+        .quadrant-title {
+          font-size: 13px;
+          font-weight: 700;
+          color: #1f2937;
+          margin-bottom: 10px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .quadrant-count {
+          background: #dc2626;
+          color: white;
+          padding: 2px 8px;
+          border-radius: 3px;
+          font-size: 11px;
+          font-weight: 700;
+        }
+
+        .usecase-list {
+          margin-left: 0;
+        }
+
+        .usecase-item {
+          font-size: 11px;
+          margin-bottom: 6px;
+          color: #4b5563;
+          line-height: 1.3;
+        }
+
+        .projected-result-box {
+          border: 3px solid #dc2626;
+          padding: 40px 50px;
+          margin: 25px 0 35px 0;
+          text-align: center;
+          background: white;
+          position: relative;
+        }
+
+        .projected-result-title {
+          position: absolute;
+          top: -10px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: white;
+          padding: 0 15px;
+          font-size: 10px;
+          font-weight: 700;
+          color: #dc2626;
+          letter-spacing: 3px;
+        }
+
+        .projected-metric {
+          margin-bottom: 20px;
+        }
+
+        .projected-metric:last-of-type {
+          margin-bottom: 0;
+        }
+
+        .projected-value {
+          font-size: 40px;
+          font-weight: 700;
+          color: #1f2937;
+          margin-bottom: 6px;
+          line-height: 1;
+        }
+
+        .projected-label {
+          font-size: 10px;
+          color: #9ca3af;
+          font-weight: 600;
+          letter-spacing: 1.5px;
+        }
+
+        .based-on-text {
+          font-size: 10px;
+          color: #9ca3af;
+          font-style: italic;
+          margin-top: 25px;
+        }
+
+        .breakdown-container {
+          border: 1px solid #e5e7eb;
+          background: white;
+          padding: 25px;
+          margin-top: 30px;
+        }
+
+        .breakdown-header {
+          font-size: 10px;
+          font-weight: 700;
+          color: #6b7280;
+          letter-spacing: 3px;
+          margin-bottom: 20px;
+          text-align: center;
+        }
+
+        .roi-table, .use-cases-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 0;
+          font-size: 12px;
+          background: white;
+        }
+
+        .roi-table th, .use-cases-table th {
+          background: #f3f4f6;
+          padding: 8px 12px;
+          text-align: left;
+          font-weight: 600;
+          color: #1f2937;
+          border: 1px solid #e5e7eb;
+        }
+
+        .roi-table td {
+          padding: 14px 0;
+          color: #4b5563;
+          border: none;
+          border-bottom: 1px solid #f3f4f6;
+        }
+
+        .roi-table tbody tr:last-child td {
+          border-bottom: none;
+        }
+
+        .roi-table tbody tr:nth-child(odd) td {
+          background: white;
+        }
+
+        .roi-table tbody tr:nth-child(even) td {
+          background: #f9fafb;
+        }
+
+        .roi-table tbody tr:last-child td {
+          border-bottom: none;
+        }
+
+        .use-cases-table td {
+          padding: 8px 6px;
+          color: #4b5563;
+          border: 1px solid #e5e7eb;
+        }
+
+        .use-cases-table tr:nth-child(even) {
+          background: #f9fafb;
+        }
+
+        .row-number {
+          font-weight: 600;
+          color: #1f2937;
+          width: 25px;
+        }
+
+        .category {
+          background: #dbeafe;
+          color: #1e40af;
+          padding: 1px 4px;
+          border-radius: 2px;
+          font-size: 8px;
+          display: inline-block;
+        }
+
+        .priority-h1 {
+          background: #fee2e2;
+          color: #991b1b;
+          padding: 1px 4px;
+          border-radius: 2px;
+          font-size: 8px;
+          font-weight: 600;
+        }
+      `}</style>
+
+      <div className="pdf-report-container">
+        {/* PAGE 1: Pain Points to Themes */}
+        <div className="pdf-page">
+          <h1 className="page-title">Pain Points to Themes Connection</h1>
+          <div className="page-number">Page 1</div>
+
+          {themesMap.size > 0 ? (
+            Array.from(themesMap.entries()).map(([theme, painPoints]) => (
+              <div key={theme} className="theme-section">
+                <div className="theme-title">{theme}</div>
+                <div className="pain-point-list">
+                  {painPoints.slice(0, 5).map((pp, idx) => (
+                    <div key={idx} className="pain-point-item">
+                      {idx + 1}. {pp.response}
+                    </div>
+                  ))}
+                  {painPoints.length > 5 && (
+                    <div className="pain-point-item" style={{ fontStyle: 'italic', color: '#9CA3AF' }}>
+                      +{painPoints.length - 5} more items
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))
+          ) : (
+            <p style={{ fontSize: '11px', color: '#6b7280' }}>No pain points with themes found.</p>
+          )}
+        </div>
+
+        {/* PAGE 2: Prioritize Impact */}
+        <div className="pdf-page">
+          <h1 className="page-title">Prioritize Impact</h1>
+          <div className="page-number">Page 2</div>
+
+          {quadrants.map(quadrant => {
+            const useCases = quadrantMap.get(quadrant) || [];
+            return (
+              <div key={quadrant} className="quadrant-section">
+                <div className="quadrant-title">
+                  <span>{quadrant}</span>
+                  <span className="quadrant-count">{useCases.length}</span>
+                </div>
+                {useCases.length > 0 ? (
+                  <div className="usecase-list">
+                    {useCases.slice(0, 3).map((uc, idx) => (
+                      <div key={idx} className="usecase-item">
+                        {idx + 1}. {uc.name}
+                      </div>
+                    ))}
+                    {useCases.length > 3 && (
+                      <div className="usecase-item" style={{ fontStyle: 'italic', color: '#9CA3AF' }}>
+                        +{useCases.length - 3} more items
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="usecase-item" style={{ color: '#9CA3AF', fontSize: '9px' }}>No items</div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* PAGE 3: ROI Projection - Exact match to Step 5 */}
+        <div className="pdf-page">
+          <h1 className="page-title">ROI Projection</h1>
+          <div className="page-number">Page 3</div>
+
+          {/* Projected Result Box */}
+          <div className="projected-result-box">
+            <div className="projected-result-title">PROJECTED RESULT</div>
+            
+            <div className="projected-metric">
+              <div className="projected-value">${data.cumulativeROI.revenue.toLocaleString()}</div>
+              <div className="projected-label">REVENUE UPLIFT</div>
+            </div>
+
+            <div className="projected-metric">
+              <div className="projected-value">${data.cumulativeROI.savings.toLocaleString()}</div>
+              <div className="projected-label">COST SAVINGS</div>
+            </div>
+
+            <div className="based-on-text">
+              Based on {data.useCases.length} prioritized use cases
+            </div>
+          </div>
+
+          {/* Calculation Breakdown */}
+          <div className="breakdown-container">
+            <div className="breakdown-header">CALCULATION BREAKDOWN</div>
+            <table className="roi-table">
+              <tbody>
+                {data.useCases.map((uc, idx) => (
+                  <tr key={idx}>
+                    <td style={{ textAlign: 'left', fontWeight: '400', fontSize: '12px', color: '#4b5563' }}>{uc.name}</td>
+                    <td style={{ fontWeight: '700', color: '#1f2937', textAlign: 'right', width: '150px', fontSize: '12px' }}>
+                      ${((uc.calculatedRevenue || 0) + (uc.calculatedSavings || 0)).toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+                <tr style={{ borderTop: '2px solid #e5e7eb' }}>
+                  <td style={{ fontWeight: '700', color: '#1f2937', paddingTop: '16px', paddingBottom: '0', fontSize: '12px' }}>
+                    TOTAL ANNUAL ROI
+                  </td>
+                  <td style={{ fontWeight: '700', color: '#dc2626', fontSize: '15px', textAlign: 'right', width: '150px', paddingTop: '16px', paddingBottom: '0' }}>
+                    ${(data.cumulativeROI.revenue + data.cumulativeROI.savings).toLocaleString()}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* PAGE 4: Use Case Backlog */}
+        <div className="pdf-page">
+          <h1 className="page-title">The Use Case Backlog</h1>
+          <div className="page-number">Page 4</div>
+
+          <table className="use-cases-table">
+            <thead>
+              <tr>
+                <th style={{ width: "5%" }}>#</th>
+                <th style={{ width: "50%" }}>Use Case Name</th>
+                <th style={{ width: "15%" }}>Category</th>
+                <th style={{ width: "15%" }}>Priority</th>
+                <th style={{ width: "15%" }}>Revenue</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.useCases.map((uc, idx) => (
+                <tr key={idx}>
+                  <td className="row-number">{idx + 1}</td>
+                  <td>{uc.name}</td>
+                  <td>
+                    <span className="category">{uc.category || "N/A"}</span>
+                  </td>
+                  <td>
+                    <span className="priority-h1">{uc.priority || "H1"}</span>
+                  </td>
+                  <td>${((uc.calculatedRevenue || 0) + (uc.calculatedSavings || 0)).toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  );
+}

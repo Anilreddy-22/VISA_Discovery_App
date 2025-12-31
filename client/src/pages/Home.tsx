@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkshop } from "@/contexts/WorkshopContext";
 import { painPointsAPI, useCasesAPI } from "@/lib/api";
+import { PDFReportComponent } from "@/components/PDFReport";
 import { QuadrantPrioritization } from "@/components/QuadrantPrioritization";
 import { BacklogPrioritization } from "@/components/BacklogPrioritization";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
@@ -451,6 +452,12 @@ export default function Home() {
     savings: 0,
     efficiency: 0
   });
+
+  // PDF Download handler
+  const handleDownloadPDF = () => {
+    // Open print dialog to save as PDF
+    window.print();
+  };
 
   // Save handler
   const handleSave = async () => {
@@ -1086,8 +1093,24 @@ export default function Home() {
             <Button
               size="lg"
               className="bg-black text-white hover:bg-black/90 rounded-none"
-              onClick={() => {
+              onClick={async () => {
+                // Auto-save pain points with quadrant assignments before generating use cases
+                const pointsWithQuadrants = painPoints.filter(p => p.quadrant);
+                if (pointsWithQuadrants.length > 0) {
+                  console.log('💾 Auto-saving pain points with quadrants before generating use cases:', pointsWithQuadrants.length);
+                  try {
+                    await handleSave();
+                  } catch (error) {
+                    console.error('Failed to auto-save pain points:', error);
+                  }
+                }
+                
                 // Smart merge: Sync with pain points while preserving user edits
+                console.log('🔄 Generating use cases from painPoints:', {
+                  totalPainPoints: painPoints.length,
+                  painPointsWithQuadrants: painPoints.filter(p => p.quadrant).map(p => ({ id: p.id, quadrant: p.quadrant, response: p.response.substring(0, 50) })),
+                });
+                
                 const generateUseCaseFromPainPoint = (p: PainPoint) => {
                   const baseline = BASELINE_ROI_PROJECTIONS[p.id as keyof typeof BASELINE_ROI_PROJECTIONS];
                   const useCaseId = `uc-${p.id}`;
@@ -1131,7 +1154,7 @@ export default function Home() {
                     impact: "High" as const,
                     effort: "Medium" as const,
                     priority: isBacklogPriority ? "H1" : (savedState?.priority || "H1"),
-                    quadrant: savedState?.quadrant,
+                    quadrant: savedState?.quadrant || p.quadrant,
                     backlogPriority: isBacklogPriority ? savedState.priority : undefined,
                     agentCount: baseline?.agentCount || "1",
                     dataCloud: baseline?.dataCloud || "",
@@ -1147,6 +1170,7 @@ export default function Home() {
                   // First time: Generate all use cases
                   const newUseCases = painPoints.map(generateUseCaseFromPainPoint);
                   console.log('✅ Initial generation: Created', newUseCases.length, 'use cases');
+                  console.log('📊 Generated use cases with quadrants:', newUseCases.filter(uc => uc.quadrant).map(uc => ({ name: uc.name, quadrant: uc.quadrant })));
                   setUseCases(newUseCases);
 
                   // Initialize cumulative ROI
@@ -1673,12 +1697,83 @@ export default function Home() {
             <Button
               size="lg"
               className="text-lg px-12 py-8 bg-[var(--color-buyframe-red)] hover:bg-[var(--color-buyframe-red)]/90 text-white rounded-none shadow-xl hover:shadow-2xl transition-all"
-              onClick={() => window.print()}
+              onClick={handleDownloadPDF}
             >
               Download Report PDF
             </Button>
           </div>
         </main>
+
+        {/* Hidden PDF Report - Only visible when printing */}
+        <div style={{ display: 'none' }} className="pdf-report-print-wrapper">
+          <PDFReportComponent data={{
+            painPoints,
+            useCases,
+            cumulativeROI
+          }} />
+        </div>
+
+        {/* Print Styles */}
+        <style>{`
+          @media print {
+            * {
+              margin: 0 !important;
+              padding: 0 !important;
+              box-sizing: border-box;
+            }
+            
+            body, html {
+              margin: 0;
+              padding: 0;
+              background: white;
+              width: 100%;
+              height: auto;
+            }
+            
+            /* Show PDF report and hide everything else */
+            .pdf-report-print-wrapper {
+              display: block !important;
+              width: 100%;
+              margin: 0;
+              padding: 0;
+            }
+            
+            .pdf-report-container {
+              display: block !important;
+              width: 100%;
+              margin: 0;
+              padding: 0;
+            }
+            
+            .pdf-page {
+              page-break-after: always;
+              page-break-inside: avoid;
+              width: 100%;
+              margin: 0;
+              padding: 30px;
+              background: white;
+              box-sizing: border-box;
+              display: block !important;
+            }
+            
+            .pdf-page:last-child {
+              page-break-after: avoid;
+            }
+            
+            /* Hide all main content */
+            main,
+            .main-content,
+            .workshop-steps,
+            .step-navigation,
+            header,
+            nav,
+            footer,
+            button,
+            .button {
+              display: none !important;
+            }
+          }
+        `}</style>
       </div>
     );
   }
