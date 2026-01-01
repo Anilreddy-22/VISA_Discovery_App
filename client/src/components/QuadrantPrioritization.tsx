@@ -200,17 +200,14 @@ export function QuadrantPrioritization({
     onUpdate(newItems);
   };
 
-  // Group items by quadrant
-  const q1Items = items.filter(i => i.quadrant === 'Quick Wins' || (!i.quadrant && i.priority === 'H1'));
-  const q2Items = items.filter(i => i.quadrant === 'Major Projects' || (!i.quadrant && i.priority === 'H2'));
-  const q3Items = items.filter(i => i.quadrant === 'Fill-in' || (!i.quadrant && i.priority === 'TBD'));
-  const q4Items = items.filter(i => i.quadrant === 'Money Pit' || (!i.quadrant && i.priority === 'Deprioritize'));
-  
-  // Handle unassigned items (put in Q3 by default if not set)
-  const unassignedItems = items.filter(i => !i.quadrant && !i.priority);
-  if (unassignedItems.length > 0) {
-    // This shouldn't happen with proper initialization, but safe fallback
-  }
+  // Group items by explicit quadrant only (no priority fallback)
+  const q1Items = items.filter(i => i.quadrant === 'Quick Wins');
+  const q2Items = items.filter(i => i.quadrant === 'Major Projects');
+  const q3Items = items.filter(i => i.quadrant === 'Fill-in');
+  const q4Items = items.filter(i => i.quadrant === 'Money Pit');
+
+  // Items without a quadrant stay in backlog regardless of priority
+  const unassignedItems = items.filter(i => !i.quadrant);
 
   return (
     <DndContext 

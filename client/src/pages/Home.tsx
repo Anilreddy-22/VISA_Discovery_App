@@ -274,7 +274,7 @@ const ProgressBar = ({ currentStep, totalSteps }: { currentStep: number; totalSt
 // --- Main Page Component ---
 
 export default function Home() {
-  const { batchSaveUseCases, saveUseCaseState, savedUseCases, savedUseCaseStates, customPainPoints, saveCustomPainPoint, updateCustomPainPoint, deleteCustomPainPoint, isReady,
+  const { batchSaveUseCases, saveUseCaseState, savedUseCases, savedUseCaseStates, customPainPoints, saveCustomPainPoint, updateCustomPainPoint, deleteCustomPainPoint, isReady, sessionId,
     //anil
     // 🆕 NEW: Session management
     recentSessions,
@@ -292,9 +292,12 @@ export default function Home() {
     }
   }, [savedUseCaseStates]);
   const [deletedPainPointIds, setDeletedPainPointIds] = useState<string[]>([]);
+  const [painPointsLoaded, setPainPointsLoaded] = useState(false);
+  const [hasAppliedSavedQuadrants, setHasAppliedSavedQuadrants] = useState(false);
+  const [lastSavedStatesSize, setLastSavedStatesSize] = useState(0);
+  const [lastSessionId, setLastSessionId] = useState<number | null>(null);
 
   // Load custom pain points from database when ready
-  const [painPointsLoaded, setPainPointsLoaded] = useState(false);
   useEffect(() => {
     if (isReady && !painPointsLoaded) {
       console.log('✅ Initial load - setting up pain points');
@@ -349,9 +352,37 @@ export default function Home() {
   }, [isReady, painPointsLoaded, customPainPoints]);
 
   // Apply saved use-case quadrants/priorities back onto pain points (for persistence across sign-in)
+  // Only run ONCE per session to avoid overwriting user drags
   useEffect(() => {
-    if (!isReady || !painPointsLoaded || painPoints.length === 0 || savedUseCaseStates.size === 0) return;
+    // Detect discovery/session change and reset flags so saved quadrants re-apply
+    if (sessionId && sessionId !== lastSessionId) {
+      setLastSessionId(sessionId);
+      setHasAppliedSavedQuadrants(false);
+      setLastSavedStatesSize(0);
+      return; // allow effect to re-run with reset flags
+    }
 
+    // Reset flag when savedUseCaseStates size changes (new session loaded)
+    // This detects sign-out/sign-in because the Map gets recreated
+    if (lastSavedStatesSize !== savedUseCaseStates.size && savedUseCaseStates.size > 0) {
+      setLastSavedStatesSize(savedUseCaseStates.size);
+      if (hasAppliedSavedQuadrants) {
+        setHasAppliedSavedQuadrants(false);
+        return; // Will re-run after flag is reset
+      }
+    }
+
+    // Wait for data to be ready
+    if (!isReady || !painPointsLoaded || savedUseCaseStates.size === 0) {
+      return;
+    }
+
+    // Already applied - don't overwrite user changes
+    if (hasAppliedSavedQuadrants) {
+      return;
+    }
+
+    // Apply saved quadrants from database
     setPainPoints(current => current.map(p => {
       const savedState = savedUseCaseStates.get(`uc-${p.id}`);
       if (!savedState) return p;
@@ -365,14 +396,34 @@ export default function Home() {
         priority: hasPriority ? savedState.priority : p.priority,
       };
     }));
-  }, [isReady, painPointsLoaded, painPoints.length, savedUseCaseStates]);
 
+    setHasAppliedSavedQuadrants(true);
+  }, [isReady, painPointsLoaded, painPoints.length, savedUseCaseStates.size, hasAppliedSavedQuadrants, lastSavedStatesSize, sessionId, lastSessionId]);
+
+  /* Removed: Reset happens when customPainPoints.length changes naturally in the dependency array
+  // Reset the flag when a new session is loaded (detected by customPainPoints change)
+  useEffect(() => {
+    setHasAppliedSavedQuadrants(false);
+  }, [customPainPoints.length]);
+  */
 
 
   const [useCases, setUseCases] = useState<UseCase[]>([]);
   //anil
   // 🆕 NEW: Track if we've already regenerated from saved state to avoid overwriting user edits
   const [hasRegenerated, setHasRegenerated] = useState(false);
+
+  // Reset per-session UI state when switching discoveries
+  useEffect(() => {
+    if (!sessionId) return;
+    setPainPoints(INITIAL_PAIN_POINTS);
+    setPainPointsLoaded(true);
+    setUseCases([]);
+    setHasRegenerated(false);
+    setHasAppliedSavedQuadrants(false);
+    setLastSavedStatesSize(0);
+    setDeletedPainPointIds([]);
+  }, [sessionId]);
 
   const quadrantFromPriority = (priority?: string) => {
     if (!priority) return undefined;

@@ -71,6 +71,11 @@ export const WorkshopProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       console.log('🔄 Switching to session:', sessionId);
 
+      // Clear prior session state immediately to avoid showing stale data
+      setSavedUseCaseStates(new Map());
+      setSavedUseCases([]);
+      setCustomPainPoints([]);
+
       // Load the session data
       const sessionData = await sessionsAPI.getOne(sessionId);
       setSession(sessionData);
@@ -178,6 +183,12 @@ export const WorkshopProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (parsedSessionId && !isNaN(parsedSessionId)) {
           // Load existing session
           console.log('📂 Loading existing session:', parsedSessionId);
+
+          // Clear prior session state before fetching
+          setSavedUseCaseStates(new Map());
+          setSavedUseCases([]);
+          setCustomPainPoints([]);
+
           const sessionData = await sessionsAPI.getOne(parsedSessionId);
           setSession(sessionData);
           setSessionId(sessionData.id);
