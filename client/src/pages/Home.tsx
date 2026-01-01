@@ -1712,7 +1712,7 @@ export default function Home() {
             </Button>
             <Button
               size="lg"
-              className="text-lg px-12 py-8 bg-[var(--color-buyframe-red)] hover:bg-[var(--color-buyframe-red)]/90 text-white rounded-none shadow-xl hover:shadow-2xl transition-all"
+              className="bg-[var(--color-buyframe-red)] hover:bg-[var(--color-buyframe-red)]/90 text-white rounded-none"
               onClick={handleDownloadPDF}
             >
               Download Report PDF
