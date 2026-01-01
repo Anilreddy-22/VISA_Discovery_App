@@ -70,12 +70,14 @@ export function PDFReportComponent({ data }: { data: PDFReportData }) {
           .pdf-page {
             page-break-after: always;
             page-break-inside: avoid;
+            padding: 40px 35px !important;
+            margin: 0 !important;
           }
           .pdf-page:last-child {
             page-break-after: avoid;
           }
           @page {
-            margin: 0;
+            margin: 15mm;
             size: auto;
           }
         }
@@ -89,7 +91,7 @@ export function PDFReportComponent({ data }: { data: PDFReportData }) {
         .pdf-page {
           page-break-after: always;
           page-break-inside: avoid;
-          padding: 30px;
+          padding: 40px 35px;
           background: white;
           margin: 0;
           position: relative;
@@ -118,7 +120,7 @@ export function PDFReportComponent({ data }: { data: PDFReportData }) {
           font-weight: 700;
           color: #1f2937;
           margin-bottom: 30px;
-          border-bottom: 3px solid #dc2626;
+          border-bottom: 2px solid #dc2626;
           padding-bottom: 12px;
         }
 
@@ -376,18 +378,18 @@ export function PDFReportComponent({ data }: { data: PDFReportData }) {
           <div className="page-number">Page 2</div>
 
           {quadrants.map(quadrant => {
-            const useCases = quadrantMap.get(quadrant) || [];
+            const items = data.painPoints.filter(pp => pp.quadrant === quadrant) || [];
             return (
               <div key={quadrant} className="quadrant-section">
                 <div className="quadrant-title">
                   <span>{quadrant}</span>
-                  <span className="quadrant-count">{useCases.length}</span>
+                  <span className="quadrant-count">{items.length}</span>
                 </div>
-                {useCases.length > 0 ? (
+                {items.length > 0 ? (
                   <div className="usecase-list">
-                    {useCases.map((uc, idx) => (
+                    {items.map((item, idx) => (
                       <div key={idx} className="usecase-item">
-                        {idx + 1}. {uc.name}
+                        {idx + 1}. {item.response}
                       </div>
                     ))}
                   </div>
