@@ -119,7 +119,7 @@ export function PDFReportComponent({ data }: { data: PDFReportData }) {
           font-size: 28px;
           font-weight: 700;
           color: #1f2937;
-          margin-bottom: 30px;
+          margin-bottom: 42px;
           border-bottom: 2px solid #dc2626;
           padding-bottom: 12px;
         }
@@ -139,20 +139,20 @@ export function PDFReportComponent({ data }: { data: PDFReportData }) {
         }
 
         .theme-section {
-          margin-bottom: 22px;
-          padding: 16px;
-          background: white;
-          border: 1px solid #e5e7eb;
+          margin-bottom: 12px;
+          padding: 12px 0 14px 0;
+          background: transparent;
+          border: 0;
+          border-bottom: 1px solid #e5e7eb;
           border-radius: 0;
+          box-shadow: none;
         }
 
         .theme-title {
           font-size: 14px;
           font-weight: 700;
-          color: #1f2937;
-          background: transparent;
-          padding: 0;
-          border-radius: 0;
+          color: #0f172a;
+          letter-spacing: 0.2px;
           margin-bottom: 12px;
         }
 
@@ -167,31 +167,47 @@ export function PDFReportComponent({ data }: { data: PDFReportData }) {
           line-height: 1.4;
         }
 
+        .quadrant-grid {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          margin-top: 28px;
+        }
+
         .quadrant-section {
-          margin-bottom: 18px;
-          padding: 14px;
-          background: white;
-          border: 1px solid #e5e7eb;
-          border-radius: 0;
+          background: #ffffff;
+          border: 1px solid #d1d5db;
+          border-radius: 3px;
+          box-shadow: 0 3px 8px rgba(0,0,0,0.04);
+          overflow: hidden;
         }
 
         .quadrant-title {
           font-size: 13px;
           font-weight: 700;
-          color: #1f2937;
-          margin-bottom: 10px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
+          color: #0f172a;
+          letter-spacing: 0.2px;
+          padding: 10px 12px;
+          background: #f3f4f6;
+          border-bottom: 1px solid #e5e7eb;
         }
 
-        .quadrant-count {
-          background: #dc2626;
-          color: white;
-          padding: 2px 8px;
-          border-radius: 3px;
+        .usecase-list {
+          margin: 0;
+          padding: 10px 12px;
+        }
+
+        .usecase-item {
           font-size: 11px;
-          font-weight: 700;
+          margin: 0;
+          padding: 8px 0;
+          color: #111827;
+          line-height: 1.35;
+          border-bottom: 1px solid #e5e7eb;
+        }
+
+        .usecase-item:last-child {
+          border-bottom: 0;
         }
 
         .usecase-list {
@@ -208,7 +224,7 @@ export function PDFReportComponent({ data }: { data: PDFReportData }) {
         .projected-result-box {
           border: 2px solid #dc2626;
           padding: 40px 50px;
-          margin: 25px 0 35px 0;
+          margin: 70px 0 35px 0;
           text-align: center;
           background: white;
           position: relative;
@@ -260,7 +276,7 @@ export function PDFReportComponent({ data }: { data: PDFReportData }) {
         .breakdown-container {
           border: 1px solid #e5e7eb;
           background: white;
-          padding: 25px;
+          padding: 32px 25px 25px;
           margin-top: 30px;
         }
 
@@ -356,8 +372,8 @@ export function PDFReportComponent({ data }: { data: PDFReportData }) {
 
           {themesMap.size > 0 ? (
             Array.from(themesMap.entries()).map(([theme, painPoints]) => (
-              <div key={theme} className="theme-section">
-                <div className="theme-title">{theme}</div>
+                <div key={theme} className="theme-section">
+                  <div className="theme-title">{theme}</div>
                 <div className="pain-point-list">
                   {painPoints.map((pp, idx) => (
                     <div key={idx} className="pain-point-item">
@@ -377,28 +393,27 @@ export function PDFReportComponent({ data }: { data: PDFReportData }) {
           <h1 className="page-title">Prioritize Impact</h1>
           <div className="page-number">Page 2</div>
 
-          {quadrants.map(quadrant => {
-            const items = data.painPoints.filter(pp => pp.quadrant === quadrant) || [];
-            return (
-              <div key={quadrant} className="quadrant-section">
-                <div className="quadrant-title">
-                  <span>{quadrant}</span>
-                  <span className="quadrant-count">{items.length}</span>
+          <div className="quadrant-grid">
+            {quadrants.map(quadrant => {
+              const items = data.painPoints.filter(pp => pp.quadrant === quadrant) || [];
+              return (
+                <div key={quadrant} className="quadrant-section">
+                  <div className="quadrant-title">{quadrant}</div>
+                  {items.length > 0 ? (
+                    <div className="usecase-list">
+                      {items.map((item, idx) => (
+                        <div key={idx} className="usecase-item">
+                          {idx + 1}. {item.response}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="usecase-item" style={{ color: '#9CA3AF', fontSize: '9px' }}>No items</div>
+                  )}
                 </div>
-                {items.length > 0 ? (
-                  <div className="usecase-list">
-                    {items.map((item, idx) => (
-                      <div key={idx} className="usecase-item">
-                        {idx + 1}. {item.response}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="usecase-item" style={{ color: '#9CA3AF', fontSize: '9px' }}>No items</div>
-                )}
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
 
         {/* PAGE 3: ROI Projection - Exact match to Step 5 */}
@@ -456,13 +471,13 @@ export function PDFReportComponent({ data }: { data: PDFReportData }) {
           <h1 className="page-title">The Use Case Backlog</h1>
           <div className="page-number">Page 4</div>
 
-          <div style={{ marginBottom: '24px', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '20px', backgroundColor: '#ffffff' }}>
+          <div style={{ marginTop: '28px', marginBottom: '24px', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '28px 20px 32px', backgroundColor: '#ffffff' }}>
             {/* P1 Quick Wins Section */}
             {(() => {
               const p1Cases = data.useCases.filter(uc => uc.backlogPriority === 'P1');
               const p1Impact = p1Cases.reduce((sum, uc) => sum + (uc.calculatedRevenue || 0) + (uc.calculatedSavings || 0), 0);
               return p1Cases.length > 0 ? (
-                <div style={{ marginBottom: '32px' }}>
+                <div style={{ marginBottom: '72px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '12px' }}>
                     <div>
                       <div style={{ fontSize: '11px', color: '#6b7280', fontWeight: '600', marginBottom: '6px', letterSpacing: '0.5px' }}>JAN 31ST - APRIL 30TH</div>
@@ -480,7 +495,7 @@ export function PDFReportComponent({ data }: { data: PDFReportData }) {
                     <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '6px' }}>Projected Impact</div>
                     <div style={{ fontSize: '24px', fontWeight: '700', color: '#dc2626' }}>${p1Impact.toLocaleString()}</div>
                   </div>
-                  <div style={{ marginTop: '12px', borderBottom: '1px solid #e5e7eb' }} />
+                  <div style={{ marginTop: '16px', borderBottom: '1px solid #e5e7eb' }} />
                 </div>
               ) : null;
             })()}
@@ -490,7 +505,7 @@ export function PDFReportComponent({ data }: { data: PDFReportData }) {
               const p2Cases = data.useCases.filter(uc => uc.backlogPriority === 'P2');
               const p2Impact = p2Cases.reduce((sum, uc) => sum + (uc.calculatedRevenue || 0) + (uc.calculatedSavings || 0), 0);
               return p2Cases.length > 0 ? (
-                <div style={{ marginBottom: '32px' }}>
+                <div style={{ marginBottom: '72px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '12px' }}>
                     <div>
                       <div style={{ fontSize: '11px', color: '#6b7280', fontWeight: '600', marginBottom: '6px', letterSpacing: '0.5px' }}>H2 / TBD</div>
@@ -508,7 +523,7 @@ export function PDFReportComponent({ data }: { data: PDFReportData }) {
                     <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '6px' }}>Projected Impact</div>
                     <div style={{ fontSize: '24px', fontWeight: '700', color: '#dc2626' }}>${p2Impact.toLocaleString()}</div>
                   </div>
-                  <div style={{ marginTop: '12px', borderBottom: '1px solid #e5e7eb' }} />
+                  <div style={{ marginTop: '16px', borderBottom: '1px solid #e5e7eb' }} />
                 </div>
               ) : null;
             })()}
@@ -518,7 +533,7 @@ export function PDFReportComponent({ data }: { data: PDFReportData }) {
               const p3Cases = data.useCases.filter(uc => uc.backlogPriority === 'P3');
               const p3Impact = p3Cases.reduce((sum, uc) => sum + (uc.calculatedRevenue || 0) + (uc.calculatedSavings || 0), 0);
               return p3Cases.length > 0 ? (
-                <div style={{ marginBottom: '8px' }}>
+                <div style={{ marginBottom: '60px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '12px' }}>
                     <div>
                       <div style={{ fontSize: '11px', color: '#6b7280', fontWeight: '600', marginBottom: '6px', letterSpacing: '0.5px' }}>TBD</div>
@@ -536,7 +551,7 @@ export function PDFReportComponent({ data }: { data: PDFReportData }) {
                     <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '6px' }}>Projected Impact</div>
                     <div style={{ fontSize: '24px', fontWeight: '700', color: '#dc2626' }}>${p3Impact.toLocaleString()}</div>
                   </div>
-                  <div style={{ marginTop: '12px', borderBottom: '1px solid #e5e7eb' }} />
+                  <div style={{ marginTop: '16px', borderBottom: '1px solid #e5e7eb' }} />
                 </div>
               ) : null;
             })()}

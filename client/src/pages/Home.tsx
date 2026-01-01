@@ -557,8 +557,20 @@ export default function Home() {
       console.error('❌ Failed to save use cases:', error);
     }
     
-    // Open print dialog to save as PDF
+    // Open print dialog to save as PDF with a clean title (removes localhost:5173 in header)
+    const previousTitle = document.title;
+    const printTitle = 'Visa Agentforce Discovery';
+
+    const restoreTitle = () => {
+      document.title = previousTitle;
+      window.removeEventListener('afterprint', restoreTitle);
+    };
+
+    document.title = printTitle;
+    window.addEventListener('afterprint', restoreTitle);
     window.print();
+    // Fallback restore in case afterprint doesn't fire
+    setTimeout(restoreTitle, 2000);
   };
 
   // Save handler
