@@ -274,7 +274,7 @@ const ProgressBar = ({ currentStep, totalSteps }: { currentStep: number; totalSt
 // --- Main Page Component ---
 
 export default function Home() {
-  const { batchSaveUseCases, savedUseCases, savedUseCaseStates, customPainPoints, saveCustomPainPoint, updateCustomPainPoint, deleteCustomPainPoint, isReady,
+  const { batchSaveUseCases, saveUseCaseState, savedUseCases, savedUseCaseStates, customPainPoints, saveCustomPainPoint, updateCustomPainPoint, deleteCustomPainPoint, isReady,
     //anil
     // 🆕 NEW: Session management
     recentSessions,
@@ -348,12 +348,47 @@ export default function Home() {
     }
   }, [isReady, painPointsLoaded, customPainPoints]);
 
+  // Apply saved use-case quadrants/priorities back onto pain points (for persistence across sign-in)
+  useEffect(() => {
+    if (!isReady || !painPointsLoaded || painPoints.length === 0 || savedUseCaseStates.size === 0) return;
+
+    setPainPoints(current => current.map(p => {
+      const savedState = savedUseCaseStates.get(`uc-${p.id}`);
+      if (!savedState) return p;
+
+      const hasQuadrant = Object.prototype.hasOwnProperty.call(savedState, 'quadrant') && savedState.quadrant !== null;
+      const hasPriority = Object.prototype.hasOwnProperty.call(savedState, 'priority') && savedState.priority !== null;
+
+      return {
+        ...p,
+        quadrant: hasQuadrant ? savedState.quadrant : p.quadrant,
+        priority: hasPriority ? savedState.priority : p.priority,
+      };
+    }));
+  }, [isReady, painPointsLoaded, painPoints.length, savedUseCaseStates]);
+
 
 
   const [useCases, setUseCases] = useState<UseCase[]>([]);
   //anil
   // 🆕 NEW: Track if we've already regenerated from saved state to avoid overwriting user edits
   const [hasRegenerated, setHasRegenerated] = useState(false);
+
+  const quadrantFromPriority = (priority?: string) => {
+    if (!priority) return undefined;
+    switch (priority) {
+      case "H1":
+        return "Quick Wins" as const;
+      case "H2":
+        return "Major Projects" as const;
+      case "TBD":
+        return "Fill-in" as const;
+      case "Deprioritize":
+        return "Money Pit" as const;
+      default:
+        return undefined;
+    }
+  };
 
   // 🆕 NEW: Regenerate use cases from saved data when savedUseCaseStates loads
   useEffect(() => {
@@ -368,6 +403,7 @@ export default function Home() {
         const baseline = BASELINE_ROI_PROJECTIONS[p.id as keyof typeof BASELINE_ROI_PROJECTIONS];
         const useCaseId = `uc-${p.id}`;
         const savedState = savedUseCaseStates.get(useCaseId);
+        const currentUseCase = useCases.find(uc => uc.id === useCaseId);
 
         // Check if saved priority is a backlog priority (P1, P2, P3)
         const isBacklogPriority = savedState?.priority && ['P1', 'P2', 'P3'].includes(savedState.priority);
@@ -375,6 +411,17 @@ export default function Home() {
         if (savedState) {
           console.log(`✅ Found saved data for ${useCaseId}:`, savedState);
         }
+
+        const priority = isBacklogPriority
+          ? "H1"
+          : (savedState?.priority || currentUseCase?.priority || p.priority || "H1");
+
+        // Do not infer quadrant from priority when backlog priorities are in play (P1/2/3)
+        // Check if quadrant property exists (even if null) before falling through to other values
+        const quadrant = (savedState && 'quadrant' in savedState) ? savedState.quadrant
+          : (currentUseCase?.quadrant ?? undefined)
+          || p.quadrant
+          || (isBacklogPriority ? undefined : quadrantFromPriority(priority));
 
         return {
           id: useCaseId,
@@ -400,9 +447,11 @@ export default function Home() {
           timeToValue: baseline?.timeToValue || "1-3 months",
           impact: "High" as const,
           effort: "Medium" as const,
-          priority: isBacklogPriority ? "H1" : (savedState?.priority || "H1"),
-          quadrant: savedState?.quadrant,
-          backlogPriority: isBacklogPriority ? savedState.priority as any : undefined,  // ← KEY FIX!
+          priority,
+          quadrant,
+          backlogPriority: isBacklogPriority
+            ? savedState.priority as any
+            : currentUseCase?.backlogPriority,
           agentCount: baseline?.agentCount || "1",
           dataCloud: baseline?.dataCloud || "",
           otherLicenses: [],
@@ -472,28 +521,47 @@ export default function Home() {
     try {
       let savedSomething = false;
 
-      // Delete removed pain points first (only those that exist in database)
-      if (deletedPainPointIds.length > 0) {
-        const dbPainPointIds = deletedPainPointIds.filter(id => {
-          // Only delete if it's a custom pain point that exists in the database
-          // Database pain points have numeric IDs after 'custom-'
+      // Identify custom points that exist in DB and collect IDs to delete
+      const customPointsInDB = customPainPoints.filter(cp => cp.id.startsWith('custom-'));
+      const currentCustomPointIds = new Set(painPoints.filter(p => p.id.startsWith('custom-')).map(p => p.id));
+      
+      // Find custom points that were in DB but are now completely gone (explicitly deleted)
+      const customPointsToDelete = customPointsInDB
+        .filter(cp => !currentCustomPointIds.has(cp.id))
+        .map(cp => cp.id);
+
+      // Delete only explicitly removed custom pain points (not unassigned ones)
+      const allPointsToDelete = [...new Set([...deletedPainPointIds, ...customPointsToDelete])];
+      if (allPointsToDelete.length > 0) {
+        const dbPainPointIds = allPointsToDelete.filter(id => {
           const match = id.match(/^custom-(\d+)$/);
           return match && !isNaN(parseInt(match[1]));
         });
 
         if (dbPainPointIds.length > 0) {
-          console.log('Deleting', dbPainPointIds.length, 'pain points from database...');
+          console.log('Deleting', dbPainPointIds.length, 'custom pain points from database...');
           for (const id of dbPainPointIds) {
             try {
               await deleteCustomPainPoint(id);
+              console.log(`✅ Deleted custom pain point ${id}`);
             } catch (error) {
               console.error('Failed to delete pain point', id, error);
-              // Continue with other deletions
             }
           }
           savedSomething = true;
-          console.log('Pain points deleted!');
         }
+        
+        // Also remove orphaned use cases (whose pain points were deleted) from memory
+        const deletedPainPointIds_Set = new Set(allPointsToDelete);
+        const orphanedUseCases = useCases.filter(uc => deletedPainPointIds_Set.has(uc.painPointId));
+        if (orphanedUseCases.length > 0) {
+          console.log(`🗑️ Removing ${orphanedUseCases.length} orphaned use cases from memory`);
+          setUseCases(useCases.filter(uc => !deletedPainPointIds_Set.has(uc.painPointId)));
+        }
+        
+        // Remove deleted custom points from painPoints state
+        setPainPoints(painPoints.filter(p => !deletedPainPointIds_Set.has(p.id)));
+        
         setDeletedPainPointIds([]);
       }
 
@@ -516,18 +584,18 @@ export default function Home() {
 
         for (const point of pointsToSave) {
           // Check if this pain point already exists in customPainPoints (loaded from database)
-          // System pain points (AUDREY_PAIN_POINTS) with quadrant/theme/priority need to be saved as NEW custom points
-          // Custom pain points are matched by ID to determine if they need update or create
-          const isSystemPoint = INITIAL_PAIN_POINTS.some(ip => ip.id === point.id);
           const existsInDB = customPainPoints.some(cp => cp.id === point.id);
 
-          if (existsInDB) {
-            existingPoints.push(point);
-          } else {
-            // System points with assignments need to be saved as new custom points
-            // They will get a new database ID but preserve their system ID for reference
-            newPoints.push(point);
+          // Only save if it's a custom point (starts with 'custom-')
+          // Standard pain points should NOT be persisted to database
+          if (point.id.startsWith('custom-')) {
+            if (existsInDB) {
+              existingPoints.push(point);
+            } else {
+              newPoints.push(point);
+            }
           }
+          // Skip standard pain points (they come from INITIAL_PAIN_POINTS and should not be saved)
         }
 
         console.log(`Categorized: ${newPoints.length} new, ${existingPoints.length} existing`);
@@ -552,10 +620,118 @@ export default function Home() {
         console.log('Pain points saved!');
       }
 
+      // If no use cases yet (still in Step 3), clear saved use case state for custom pain points moved back to backlog
+      if (useCases.length === 0) {
+        const clearedCustomPoints = painPoints.filter(p => p.id.startsWith('custom-') && !p.quadrant);
+        if (clearedCustomPoints.length > 0) {
+          console.log('Clearing saved use case state for', clearedCustomPoints.length, 'custom pain points moved to backlog');
+          await Promise.all(clearedCustomPoints.map(async (p) => {
+            const savedState = savedUseCaseStates.get(`uc-${p.id}`) || {} as any;
+            const useCaseToClear: UseCase = {
+              id: `uc-${p.id}`,
+              painPointId: p.id,
+              name: savedState.name || p.response,
+              category: savedState.category || p.category,
+              problem: savedState.problem || p.response,
+              agentRole: savedState.agentRole || "",
+              dataRequired: savedState.dataRequired || "",
+              integration: savedState.integration || "",
+              revenueImpact: "",
+              costSavings: "",
+              riskReduction: "",
+              timeToValue: "1-3 months",
+              impact: "High",
+              effort: "Medium",
+              priority: null as any,
+              quadrant: null,
+              backlogPriority: undefined,
+              agentCount: "1",
+              dataCloud: "",
+              otherLicenses: [],
+              timeline: savedState.timeline || "",
+              calculatedRevenue: savedState.revenue ?? 0,
+              calculatedSavings: savedState.savings ?? 0,
+              calculatedEfficiency: 0,
+            };
+
+            try {
+              await saveUseCaseState(useCaseToClear as any);
+            } catch (err) {
+              console.error('Failed to clear use case state for', p.id, err);
+            }
+          }));
+          savedSomething = true;
+        }
+      }
+
       // Save use cases if they exist
       if (useCases.length > 0) {
         console.log('Saving use cases...');
-        await batchSaveUseCases(useCases);
+
+        const existingPainPointIds = new Set(painPoints.map(p => p.id));
+
+        // Add placeholder use cases for custom pain points that are in backlog (no quadrant) so we can clear their saved state
+        const customBacklog = painPoints.filter(p => p.id.startsWith('custom-') && !p.quadrant);
+        const placeholderClears: UseCase[] = customBacklog
+          .filter(p => !useCases.some(uc => uc.painPointId === p.id))
+          .map(p => {
+            const savedState = savedUseCaseStates.get(`uc-${p.id}`) || {} as any;
+            return {
+              id: `uc-${p.id}`,
+              painPointId: p.id,
+              name: savedState.name || p.response,
+              category: savedState.category || p.category,
+              problem: savedState.problem || p.response,
+              agentRole: savedState.agentRole || "",
+              dataRequired: savedState.dataRequired || "",
+              integration: savedState.integration || "",
+              revenueImpact: "",
+              costSavings: "",
+              riskReduction: "",
+              timeToValue: "1-3 months",
+              impact: "High",
+              effort: "Medium",
+              priority: null as any,
+              quadrant: null,
+              backlogPriority: undefined,
+              agentCount: "1",
+              dataCloud: "",
+              otherLicenses: [],
+              timeline: savedState.timeline || "",
+              calculatedRevenue: savedState.revenue ?? 0,
+              calculatedSavings: savedState.savings ?? 0,
+              calculatedEfficiency: 0,
+            } as UseCase;
+          });
+
+        const useCasesBase = [...useCases, ...placeholderClears];
+
+        // Filter: only save use cases whose pain points still exist
+        const useCasesToSave = useCasesBase.filter(uc => existingPainPointIds.has(uc.painPointId));
+        console.log(`📊 Use cases: total ${useCasesBase.length}, to save: ${useCasesToSave.length} (filtered out ${useCasesBase.length - useCasesToSave.length} orphaned)`);
+
+        // Align use cases to current quadrant assignments from pain points
+        const useCasesAlignedToQuadrants = useCasesToSave.map(uc => {
+          const painPoint = painPoints.find(p => p.id === uc.painPointId);
+
+          const quadrant = painPoint ? (painPoint.quadrant ?? null) : null;
+          const priorityFromPainPoint = painPoint ? painPoint.priority ?? null : null;
+          const backlogPriority = (uc as any).backlogPriority ?? null;
+
+          const priority = backlogPriority
+            ?? priorityFromPainPoint
+            ?? (quadrant ? (uc.priority ?? null) : null);
+
+          return {
+            ...uc,
+            quadrant,
+            priority,
+          } as UseCase;
+        });
+
+        if (useCasesAlignedToQuadrants.length > 0) {
+          await batchSaveUseCases(useCasesAlignedToQuadrants);
+        }
         savedSomething = true;
         console.log('Use cases saved!');
       }
@@ -1135,6 +1311,11 @@ export default function Home() {
                     });
                   }
 
+                  const priority = isBacklogPriority ? "H1" : (savedState?.priority || p.priority || "H1");
+                  //</div>const quadrant = (savedState && 'quadrant' in savedState) ? savedState.quadrant
+                  //  : (p.quadrant || (isBacklogPriority ? undefined : quadrantFromPriority(priority)));
+                 // const quadrant = p.quadrant || (isBacklogPriority ? undefined : quadrantFromPriority(priority)); 
+                 const quadrant = p.quadrant; 
                   return {
                     id: useCaseId,
                     painPointId: p.id,
@@ -1159,8 +1340,8 @@ export default function Home() {
                     timeToValue: baseline?.timeToValue || "1-3 months",
                     impact: "High" as const,
                     effort: "Medium" as const,
-                    priority: isBacklogPriority ? "H1" : (savedState?.priority || "H1"),
-                    quadrant: savedState?.quadrant || p.quadrant,
+                    priority,
+                    quadrant,
                     backlogPriority: isBacklogPriority ? savedState.priority : undefined,
                     agentCount: baseline?.agentCount || "1",
                     dataCloud: baseline?.dataCloud || "",
@@ -1196,6 +1377,10 @@ export default function Home() {
                       // Smart merge: Update metadata from pain point, preserve user-edited financial data
                       const baseline = BASELINE_ROI_PROJECTIONS[p.id as keyof typeof BASELINE_ROI_PROJECTIONS];
 
+                      const backlogPriority = (existing as any).backlogPriority ?? null;
+                      const priority = backlogPriority ?? p.priority ?? existing.priority ?? null;
+                      const quadrant = p.quadrant ?? null;
+
                       console.log(`✅ Smart merge for pain point: ${p.id} - updating metadata, preserving financial edits`);
                       return {
                         ...existing,
@@ -1203,6 +1388,8 @@ export default function Home() {
                         name: baseline?.name || p.response,
                         category: p.category,
                         problem: baseline?.problem || p.response,
+                        quadrant,
+                        priority,
                         // Preserve user-edited financial fields
                         calculatedRevenue: existing.calculatedRevenue,
                         calculatedSavings: existing.calculatedSavings,

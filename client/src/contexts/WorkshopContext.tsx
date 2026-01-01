@@ -377,6 +377,15 @@ export const WorkshopProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const numericId = parseInt(id.replace('custom-', ''));
       await painPointsAPI.delete(numericId);
       setCustomPainPoints(prev => prev.filter(pp => pp.id !== id));
+      
+      // Clear saved use case state for this pain point
+      const useCaseId = `uc-${id}`;
+      setSavedUseCaseStates(prev => {
+        const next = new Map(prev);
+        next.delete(useCaseId);
+        console.log(`🗑️ Removed use case state for deleted pain point: ${useCaseId}`);
+        return next;
+      });
     } catch (error) {
       console.error('Failed to delete pain point:', error);
       throw error;

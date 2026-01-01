@@ -67,9 +67,10 @@ export function uiToAPIPainPoint(uiPainPoint: UIPainPoint) {
     category: mapCategoryToAPI(uiPainPoint.category),
     title: uiPainPoint.question,
     description: uiPainPoint.response,
-    theme: uiPainPoint.theme,
-    priority: uiPainPoint.priority,
-    quadrant: uiPainPoint.quadrant,
+    // Use null (not undefined) so server overwrites existing values when clearing
+    theme: uiPainPoint.theme ?? null,
+    priority: uiPainPoint.priority ?? null,
+    quadrant: uiPainPoint.quadrant ?? null,
   };
 }
 
@@ -127,12 +128,15 @@ export function apiToUIUseCase(apiUseCase: APIUseCase, baseUseCase: UIUseCase): 
 export function uiToAPIUseCase(uiUseCase: UIUseCase) {
   // Prioritize backlogPriority (P1, P2, P3) over earlier priority (H1, H2, TBD)
   // This ensures backlog step changes override quadrant step priorities
-  const priority = (uiUseCase as any).backlogPriority || uiUseCase.priority;
+  const priority = (uiUseCase as any).backlogPriority ?? uiUseCase.priority ?? null;
+
+  // Allow clearing quadrant/priority by sending null (API treats undefined as keep-existing)
+  const quadrant = uiUseCase.quadrant ?? null;
 
   return {
     useCaseId: uiUseCase.id,
-    priority: priority,
-    quadrant: uiUseCase.quadrant,
+    priority,
+    quadrant,
     revenue: uiUseCase.calculatedRevenue,
     savings: uiUseCase.calculatedSavings,
     timeline: uiUseCase.timeline,
