@@ -429,6 +429,15 @@ export default function Home() {
     setDeletedPainPointIds([]);
   }, [sessionId]);
 
+  // Reset hasRegenerated when savedUseCaseStates Map changes (new data loaded)
+  // We track the Map reference itself, not just size, to detect page refreshes
+  useEffect(() => {
+    if (savedUseCaseStates.size > 0) {
+      console.log('🔄 Saved states Map changed, resetting regeneration flag');
+      setHasRegenerated(false);
+    }
+  }, [savedUseCaseStates]);
+
   const quadrantFromPriority = (priority?: string) => {
     if (!priority) return undefined;
     switch (priority) {
@@ -532,7 +541,7 @@ export default function Home() {
 
       console.log('✅ Updated ROI:', { revenue: totalRev, savings: totalSav, efficiency: totalEff });
     }
-  }, [isReady, painPointsLoaded, painPoints, savedUseCaseStates, hasRegenerated]);
+  }, [isReady, painPointsLoaded, painPoints, savedUseCaseStates, hasRegenerated, sessionId]);
 
   //const [useCases, setUseCases] = useState<UseCase[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
