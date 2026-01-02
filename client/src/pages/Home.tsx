@@ -383,13 +383,17 @@ export default function Home() {
     }
 
     // Apply saved quadrants from database
+    console.log('🔵 Applying saved quadrants. sessionId:', sessionId, 'savedUseCaseStates size:', savedUseCaseStates.size);
     setPainPoints(current => current.map(p => {
-      const savedState = savedUseCaseStates.get(`uc-${sessionId}-${p.id}`);
+      const key = `uc-${sessionId}-${p.id}`;
+      const savedState = savedUseCaseStates.get(key);
+      console.log(`🔵 Pain point ${p.id}: key=${key}, savedState=`, savedState);
       if (!savedState) return p;
 
       const hasQuadrant = Object.prototype.hasOwnProperty.call(savedState, 'quadrant') && savedState.quadrant !== null;
       const hasPriority = Object.prototype.hasOwnProperty.call(savedState, 'priority') && savedState.priority !== null;
 
+      console.log(`✅ Applying saved state to ${p.id}: quadrant=${savedState.quadrant}, priority=${savedState.priority}`);
       return {
         ...p,
         quadrant: hasQuadrant ? savedState.quadrant : p.quadrant,

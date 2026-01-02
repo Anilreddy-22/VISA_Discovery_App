@@ -98,10 +98,12 @@ export const WorkshopProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         // Create a map of useCaseId to saved state
         // CRITICAL: Keys MUST be in format 'uc-{sessionId}-{painPointId}' to avoid collisions across discoveries
         const stateMap = new Map();
+        console.log('🟢 Loading use cases for session:', sessionData.id);
         useCases.forEach((uc: any) => {
           // Parse painPointId from useCaseId or use as-is if it's a simple ID
           // Format: uc-{sessionId}-{painPointId} ensures no collisions between discoveries
           const key = uc.useCaseId.includes('-') ? uc.useCaseId : `uc-${sessionData.id}-${uc.useCaseId}`;
+          console.log('🟢 Loading use case:', uc.useCaseId, '-> key:', key, 'quadrant:', uc.quadrant);
           stateMap.set(key, {
             priority: uc.priority,
             quadrant: uc.quadrant,
@@ -120,7 +122,7 @@ export const WorkshopProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           });
         });
         setSavedUseCaseStates(stateMap);
-        console.log('✅ Created state map with', stateMap.size, 'entries');
+        console.log('✅ Created state map with', stateMap.size, 'entries. Sample keys:', Array.from(stateMap.keys()).slice(0, 3));
       } catch (error) {
         console.error('Failed to load use cases:', error);
       }
