@@ -384,7 +384,7 @@ export default function Home() {
 
     // Apply saved quadrants from database
     setPainPoints(current => current.map(p => {
-      const savedState = savedUseCaseStates.get(`uc-${p.id}`);
+      const savedState = savedUseCaseStates.get(`uc-${sessionId}-${p.id}`);
       if (!savedState) return p;
 
       const hasQuadrant = Object.prototype.hasOwnProperty.call(savedState, 'quadrant') && savedState.quadrant !== null;
@@ -452,7 +452,7 @@ export default function Home() {
 
       const generateUseCaseFromPainPoint = (p: PainPoint) => {
         const baseline = BASELINE_ROI_PROJECTIONS[p.id as keyof typeof BASELINE_ROI_PROJECTIONS];
-        const useCaseId = `uc-${p.id}`;
+        const useCaseId = `uc-${sessionId}-${p.id}`;
         const savedState = savedUseCaseStates.get(useCaseId);
         const currentUseCase = useCases.find(uc => uc.id === useCaseId);
 
@@ -557,20 +557,8 @@ export default function Home() {
       console.error('❌ Failed to save use cases:', error);
     }
     
-    // Open print dialog to save as PDF with a clean title (removes localhost:5173 in header)
-    const previousTitle = document.title;
-    const printTitle = 'Visa Agentforce Discovery';
-
-    const restoreTitle = () => {
-      document.title = previousTitle;
-      window.removeEventListener('afterprint', restoreTitle);
-    };
-
-    document.title = printTitle;
-    window.addEventListener('afterprint', restoreTitle);
+    // Open print dialog to save as PDF
     window.print();
-    // Fallback restore in case afterprint doesn't fire
-    setTimeout(restoreTitle, 2000);
   };
 
   // Save handler

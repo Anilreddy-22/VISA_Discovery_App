@@ -96,9 +96,13 @@ export const WorkshopProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         console.log('✅ Loaded use case states:', useCases.length, 'items');
 
         // Create a map of useCaseId to saved state
+        // CRITICAL: Keys MUST be in format 'uc-{sessionId}-{painPointId}' to avoid collisions across discoveries
         const stateMap = new Map();
         useCases.forEach((uc: any) => {
-          stateMap.set(uc.useCaseId, {
+          // Parse painPointId from useCaseId or use as-is if it's a simple ID
+          // Format: uc-{sessionId}-{painPointId} ensures no collisions between discoveries
+          const key = uc.useCaseId.includes('-') ? uc.useCaseId : `uc-${sessionData.id}-${uc.useCaseId}`;
+          stateMap.set(key, {
             priority: uc.priority,
             quadrant: uc.quadrant,
             revenue: uc.revenue,
@@ -203,9 +207,13 @@ export const WorkshopProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             console.log('✅ Loaded use case states from database:', useCases.length, 'items');
 
             // Create a map of useCaseId to saved state
+            // CRITICAL: Keys MUST be in format 'uc-{sessionId}-{painPointId}' to avoid collisions across discoveries
             const stateMap = new Map();
             useCases.forEach((uc: any) => {
-              stateMap.set(uc.useCaseId, {
+              // Parse painPointId from useCaseId or use as-is if it's a simple ID
+              // Format: uc-{sessionId}-{painPointId} ensures no collisions between discoveries
+              const key = uc.useCaseId.includes('-') ? uc.useCaseId : `uc-${sessionData.id}-${uc.useCaseId}`;
+              stateMap.set(key, {
                 priority: uc.priority,
                 quadrant: uc.quadrant,
                 revenue: uc.revenue,
