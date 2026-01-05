@@ -177,6 +177,11 @@ export const sessionsAPI = {
     return data as Session;
   },
 
+  updateStatus: async (id: number, status: 'draft' | 'completed') => {
+    const { data } = await api.post(`/sessions/${id}/update-status`, { status });
+    return data as Session;
+  },
+
   delete: async (id: number) => {
     await api.delete(`/sessions/${id}`);
   },

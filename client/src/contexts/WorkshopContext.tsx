@@ -269,6 +269,16 @@ export const WorkshopProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     if (user) {
       initSession();
+    } else {
+      // User logged out - clear workshop state
+      console.log('👤 User logged out, clearing workshop state');
+      setSession(null);
+      setSessionId(null);
+      setCustomPainPoints([]);
+      setSavedUseCases([]);
+      setSavedUseCaseStates(new Map());
+      setRecentSessions([]);
+      setIsReady(false);
     }
   }, [user, loadRecentSessions]);
 

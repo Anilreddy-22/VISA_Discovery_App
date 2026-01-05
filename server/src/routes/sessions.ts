@@ -162,6 +162,46 @@ router.post('/:id/mark-completed', async (req, res) => {
   }
 });
 
+// Update session status
+router.post('/:id/update-status', async (req, res) => {
+  try {
+    const sessionId = parseInt(req.params.id);
+    const { status } = req.body;
+
+    if (!status || !['draft', 'completed'].includes(status)) {
+      return res.status(400).json({ error: 'Valid status (draft or completed) is required' });
+    }
+
+    // Check if session exists and user has permission
+    const [existingSession] = await db.select()
+      .from(schema.sessions)
+      .where(eq(schema.sessions.id, sessionId))
+      .limit(1);
+
+    if (!existingSession) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Only creator or admin can update status
+    if (existingSession.createdBy !== req.user!.userId && req.user!.role !== 'admin') {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+
+    const [updated] = await db.update(schema.sessions)
+      .set({
+        status,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.sessions.id, sessionId))
+      .returning();
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Update session status error:', error);
+    res.status(500).json({ error: 'Failed to update session status' });
+  }
+});
+
 // Delete session
 router.delete('/:id', async (req, res) => {
   try {

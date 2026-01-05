@@ -287,6 +287,16 @@ export default function Home() {
   const [painPoints, setPainPoints] = useState<PainPoint[]>(INITIAL_PAIN_POINTS);
   const [recentPageIndex, setRecentPageIndex] = useState(0);
 
+  // Debug: Log recentSessions when it changes
+  useEffect(() => {
+    console.log('📋 recentSessions updated:', recentSessions.map(s => ({
+      id: s.id,
+      status: s.status,
+      painPointsCount: s.painPointsCount,
+      useCasesCount: s.useCasesCount
+    })));
+  }, [recentSessions]);
+
   // Debug: Log savedUseCaseStates when it changes
   useEffect(() => {
     if (savedUseCaseStates.size > 0) {
@@ -561,6 +571,9 @@ export default function Home() {
     efficiency: 0
   });
 
+  // Get most recent session (available at component level for use in all functions)
+  const mostRecentSession = recentSessions.length > 0 ? recentSessions[0] : null;
+
   // PDF Download handler
   const handleDownloadPDF = async () => {
     // Auto-save use cases before generating PDF to ensure current state is captured
@@ -651,9 +664,11 @@ export default function Home() {
         !INITIAL_PAIN_POINTS.find(ip => ip.id === p.id && ip.response === p.response)
       );
 
+      console.log('🔍 pointsToSave check:', { totalPainPoints: painPoints.length, pointsToSaveCount: pointsToSave.length, customPointsCount: painPoints.filter(p => p.id.startsWith('custom-')).length });
+
       if (pointsToSave.length > 0) {
         console.log('Saving', pointsToSave.length, 'pain points...');
-        console.log('Points to save:', pointsToSave.map(p => ({ id: p.id, question: p.question, theme: p.theme, priority: p.priority, quadrant: p.quadrant })));
+        console.log('Points to save:', pointsToSave.map(p => ({ id: p.id, question: p.question, startsWithCustom: p.id.startsWith('custom-'), theme: p.theme, priority: p.priority, quadrant: p.quadrant })));
 
         // Group into new vs existing
         const newPoints = [];
@@ -675,26 +690,52 @@ export default function Home() {
           // Skip standard pain points (they come from INITIAL_PAIN_POINTS and should not be saved)
         }
 
-        console.log(`Categorized: ${newPoints.length} new, ${existingPoints.length} existing`);
+        console.log(`📝 Categorized: ${newPoints.length} new, ${existingPoints.length} existing`);
 
-        // Save new and existing pain points in parallel for better performance
-        const savePromises = [
-          ...newPoints.map(point =>
-            saveCustomPainPoint(point)
-              .then(() => console.log(`✅ Saved new pain point ${point.id}`))
-              .catch(error => console.error(`❌ Failed to save pain point ${point.id}:`, error))
-          ),
-          ...existingPoints.map(point =>
-            updateCustomPainPoint(point)
-              .then(() => console.log(`✅ Updated pain point ${point.id}`))
-              .catch(error => console.error(`❌ Failed to update pain point ${point.id}:`, error))
-          )
-        ];
+        if (newPoints.length > 0 || existingPoints.length > 0) {
+          // Save new and existing pain points in parallel for better performance
+          const savePromises = [
+            ...newPoints.map(point => {
+              console.log(`💾 Starting save for new point ${point.id}...`);
+              return saveCustomPainPoint(point)
+                .then(() => {
+                  console.log(`✅ Saved new pain point ${point.id}`);
+                  return true;
+                })
+                .catch(error => {
+                  console.error(`❌ Failed to save pain point ${point.id}:`, error);
+                  throw error;
+                });
+            }),
+            ...existingPoints.map(point => {
+              console.log(`💾 Starting update for existing point ${point.id}...`);
+              return updateCustomPainPoint(point)
+                .then(() => {
+                  console.log(`✅ Updated pain point ${point.id}`);
+                  return true;
+                })
+                .catch(error => {
+                  console.error(`❌ Failed to update pain point ${point.id}:`, error);
+                  throw error;
+                });
+            })
+          ];
 
-        await Promise.all(savePromises);
+          console.log(`⏳ Waiting for ${savePromises.length} save operations...`);
+          await Promise.all(savePromises);
+          console.log(`✅ All pain point saves completed`);
 
-        savedSomething = true;
-        console.log('Pain points saved!');
+          savedSomething = true;
+          console.log('Pain points saved!');
+        }
+      }
+
+      // Check for early exit AFTER pain point save (not before)
+      if (!savedSomething && useCases.length === 0) {
+        // Early in workflow, nothing to save yet
+        alert('Progress will be saved automatically as you work through the steps. Continue to the next step to start creating use cases.');
+        setIsSaving(false);
+        return;
       }
 
       // If no use cases yet (still in Step 3), clear saved use case state for custom pain points moved back to backlog
@@ -822,6 +863,33 @@ export default function Home() {
 
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
+      
+      // If current session is completed and we just saved changes, revert status to 'draft'
+      if (sessionId && savedSomething) {
+        // Find the current session in recentSessions to check its status
+        const currentSession = recentSessions.find(s => s.id === sessionId);
+        if (currentSession?.status === 'completed') {
+          console.log('📋 Completed session was edited, reverting status to draft...');
+          try {
+            await sessionsAPI.updateStatus(sessionId, 'draft');
+            console.log('✅ Session status reverted to draft');
+          } catch (error) {
+            console.error('Failed to revert session status:', error);
+          }
+        }
+      }
+      
+      // Refresh recent sessions list so button visibility updates with new pain point counts
+      if (savedSomething) {
+        console.log('Refreshing recent sessions to update counts...');
+        try {
+          await loadRecentSessions();
+          console.log('✅ Recent sessions refreshed');
+        } catch (error) {
+          console.error('Failed to refresh sessions:', error);
+        }
+      }
+      
       console.log('Save completed successfully!');
 
     } catch (error) {
@@ -859,6 +927,18 @@ export default function Home() {
 
   // Step 1: Welcome
   if (step === "welcome") {
+
+    // Only show continue button if the MOST RECENT session is draft AND has actual data (user added/modified content)
+    const showContinueButton = mostRecentSession?.status === 'draft' && 
+      ((mostRecentSession?.painPointsCount || 0) > 0 || (mostRecentSession?.useCasesCount || 0) > 0);
+    
+    console.log('🎯 Welcome step - button check:', {
+      mostRecentSession: mostRecentSession?.id,
+      status: mostRecentSession?.status,
+      painPointsCount: mostRecentSession?.painPointsCount,
+      useCasesCount: mostRecentSession?.useCasesCount,
+      showContinueButton
+    });
 
     /*
         // 🆕 NEW: Handler for "Start Discovery" button
@@ -899,26 +979,20 @@ export default function Home() {
       }
     };
     //anil
-    // 🆕 NEW: Handler to load the most recent session (if it's draft)
+    // 🆕 NEW: Handler to load the most recent session (if it's draft with data)
     const handleContinueFromLast = async () => {
       try {
-        console.log('🔍 Loading most recent session...');
+        console.log('🔍 Loading most recent draft session with data...');
 
-        if (recentSessions.length === 0) {
-          alert('No recent workshops found. Please start a new discovery.');
+        if (!mostRecentSession || mostRecentSession.status !== 'draft' || 
+            ((mostRecentSession?.painPointsCount || 0) === 0 && (mostRecentSession?.useCasesCount || 0) === 0)) {
+          alert('No in-progress workshop with saved data found. Please start a new discovery.');
           return;
         }
 
-        const mostRecentSession = recentSessions[0];
-        
-        // Only load if it's still in draft state
-        if (mostRecentSession.status === 'draft') {
-          console.log('✅ Loading draft session:', mostRecentSession.id);
-          await loadSession(mostRecentSession.id);
-          nextStep("identify");
-        } else {
-          alert('Your last workshop is already completed. Please start a new discovery.');
-        }
+        console.log('✅ Loading draft session:', mostRecentSession.id);
+        await loadSession(mostRecentSession.id);
+        nextStep("identify");
       } catch (error) {
         console.error('❌ Failed to load session:', error);
         alert('Failed to load previous workshop. Please try again.');
@@ -1023,10 +1097,8 @@ export default function Home() {
                 Start Discovery <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
 
-              {/* Continue From Last Workshop Button - Only show if the most recent session is draft with data */}
-              {recentSessions.length > 0 && 
-               recentSessions[0].status === 'draft' && 
-               ((recentSessions[0].painPointsCount || 0) > 0 || (recentSessions[0].useCasesCount || 0) > 0) && (
+              {/* Continue From Last Workshop Button - Show when there is an in-progress session with data */}
+              {showContinueButton && (
                 <Button
                   size="lg"
                   variant="outline"
@@ -1041,9 +1113,11 @@ export default function Home() {
 
             {/* Recent Discoveries List with Pagination */}
             {(() => {
-              const pastSessions = recentSessions
-                .slice(1) // Skip the most recent one (available in Continue button)
-                .filter(session => (session.painPointsCount || 0) > 0 || (session.useCasesCount || 0) > 0);
+              const sessionsForList = showContinueButton
+                ? recentSessions.slice(1) // Skip the most recent one (reserved for Continue button)
+                : recentSessions; // Show newest when there is no Continue button
+
+              const pastSessions = sessionsForList.filter(session => (session.painPointsCount || 0) > 0 || (session.useCasesCount || 0) > 0);
 
               if (pastSessions.length === 0) return null;
 
@@ -1082,8 +1156,8 @@ export default function Home() {
                           <Badge 
                             variant="outline"
                             className={session.status === 'completed' 
-                              ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100 uppercase font-semibold text-xs rounded-full' 
-                              : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 uppercase font-semibold text-xs rounded-full'}
+                              ? 'bg-green-100 text-green-700 border-green-200 hover:bg-green-100 uppercase font-semibold text-xs rounded-full px-3 py-1.5' 
+                              : 'bg-yellow-100 text-yellow-700 border-yellow-200 hover:bg-yellow-100 uppercase font-semibold text-xs rounded-full px-3 py-1.5'}
                           >
                             {session.status === 'completed' ? 'Completed' : 'Draft'}
                           </Badge>
