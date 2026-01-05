@@ -8,6 +8,7 @@ import { Input } from '../components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
+import { Badge } from '../components/ui/badge';
 
 export default function SessionSelector() {
   const [, setLocation] = useLocation();
@@ -139,10 +140,20 @@ export default function SessionSelector() {
                 {sessions.map((session) => (
                   <Card key={session.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => handleSelectSession(session.id)}>
                     <CardHeader>
-                      <CardTitle className="text-lg">{session.name}</CardTitle>
-                      <CardDescription>
-                        {session.description || 'No description'}
-                      </CardDescription>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <CardTitle className="text-lg">{session.name}</CardTitle>
+                          <CardDescription>
+                            {session.description || 'No description'}
+                          </CardDescription>
+                        </div>
+                        <Badge 
+                          variant={session.status === 'completed' ? 'default' : 'secondary'}
+                          className={session.status === 'completed' ? 'bg-green-600 hover:bg-green-700' : 'bg-amber-500 hover:bg-amber-600'}
+                        >
+                          {session.status === 'completed' ? 'Completed' : 'Draft'}
+                        </Badge>
+                      </div>
                     </CardHeader>
                     <CardContent>
                       <div className="text-sm text-gray-600 space-y-1">

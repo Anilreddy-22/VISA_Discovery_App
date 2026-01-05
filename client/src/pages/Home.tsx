@@ -6,13 +6,14 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, BarChart3, CheckCircle2, ChevronRight, Clock, DollarSign, LayoutDashboard, LineChart, PieChart, Settings2, Target, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkshop } from "@/contexts/WorkshopContext";
-import { painPointsAPI, useCasesAPI } from "@/lib/api";
+import { painPointsAPI, useCasesAPI, sessionsAPI } from "@/lib/api";
 import { PDFReportComponent } from "@/components/PDFReport";
 import { QuadrantPrioritization } from "@/components/QuadrantPrioritization";
 import { BacklogPrioritization } from "@/components/BacklogPrioritization";
@@ -279,6 +280,7 @@ export default function Home() {
     // 🆕 NEW: Session management
     recentSessions,
     loadSession,
+    loadRecentSessions,
     createNewSession,
   } = useWorkshop();
   const [step, setStep] = useState<Step>("welcome");
@@ -520,8 +522,8 @@ export default function Home() {
           dataCloud: baseline?.dataCloud || "",
           otherLicenses: [],
           timeline: savedState?.timeline || baseline?.timeline || "Jan 31st 2025",
-          calculatedRevenue: savedState?.revenue ?? baseline?.calculatedRevenue ?? 0,
-          calculatedSavings: savedState?.savings ?? baseline?.calculatedSavings ?? 0,
+          calculatedRevenue: savedState?.revenue ?? baseline?.calculatedRevenue ?? null,
+          calculatedSavings: savedState?.savings ?? baseline?.calculatedSavings ?? null,
           calculatedEfficiency: baseline?.calculatedEfficiency || 0
         };
       };
@@ -566,8 +568,19 @@ export default function Home() {
       console.log('💾 Auto-saving use cases before PDF generation...');
       await batchSaveUseCases(useCases);
       console.log('✅ Use cases saved successfully');
+
+      // Mark session as completed
+      if (sessionId) {
+        console.log('✅ Marking session as completed...');
+        await sessionsAPI.markCompleted(sessionId);
+        console.log('✅ Session marked as completed');
+        
+        // Refresh recent sessions to update the button state
+        await loadRecentSessions();
+        console.log('✅ Recent sessions refreshed');
+      }
     } catch (error) {
-      console.error('❌ Failed to save use cases:', error);
+      console.error('❌ Failed to save use cases or mark session as completed:', error);
     }
     
     // Open print dialog to save as PDF
@@ -713,8 +726,8 @@ export default function Home() {
               dataCloud: "",
               otherLicenses: [],
               timeline: savedState.timeline || "",
-              calculatedRevenue: savedState.revenue ?? 0,
-              calculatedSavings: savedState.savings ?? 0,
+              calculatedRevenue: savedState.revenue ?? null,
+              calculatedSavings: savedState.savings ?? null,
               calculatedEfficiency: 0,
             };
 
@@ -762,8 +775,8 @@ export default function Home() {
               dataCloud: "",
               otherLicenses: [],
               timeline: savedState.timeline || "",
-              calculatedRevenue: savedState.revenue ?? 0,
-              calculatedSavings: savedState.savings ?? 0,
+              calculatedRevenue: savedState.revenue ?? null,
+              calculatedSavings: savedState.savings ?? null,
               calculatedEfficiency: 0,
             } as UseCase;
           });
@@ -886,32 +899,26 @@ export default function Home() {
       }
     };
     //anil
-    // 🆕 NEW: Handler to load the most recent session with data
+    // 🆕 NEW: Handler to load the most recent session (if it's draft)
     const handleContinueFromLast = async () => {
       try {
-        console.log('🔍 Finding most recent session with data...');
+        console.log('🔍 Loading most recent session...');
 
-        // Find first session that has pain points or use cases
-        for (const session of recentSessions) {
-          try {
-            const painPoints = await painPointsAPI.getBySession(session.id);
-            const useCases = await useCasesAPI.getBySession(session.id);
-
-            if (painPoints.length > 0 || useCases.length > 0) {
-              console.log('✅ Found session with data:', session.id);
-              await loadSession(session.id);
-              nextStep("identify");
-              return;
-            } else {
-              console.log('⏭️ Skipping empty session:', session.id);
-            }
-          } catch (error) {
-            console.error('Error checking session:', session.id, error);
-          }
+        if (recentSessions.length === 0) {
+          alert('No recent workshops found. Please start a new discovery.');
+          return;
         }
 
-        // No sessions with data found
-        alert('No previous workshops found with data. Please start a new discovery.');
+        const mostRecentSession = recentSessions[0];
+        
+        // Only load if it's still in draft state
+        if (mostRecentSession.status === 'draft') {
+          console.log('✅ Loading draft session:', mostRecentSession.id);
+          await loadSession(mostRecentSession.id);
+          nextStep("identify");
+        } else {
+          alert('Your last workshop is already completed. Please start a new discovery.');
+        }
       } catch (error) {
         console.error('❌ Failed to load session:', error);
         alert('Failed to load previous workshop. Please try again.');
@@ -1016,8 +1023,10 @@ export default function Home() {
                 Start Discovery <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
 
-              {/* Continue From Last Workshop Button - Only show if there are recent sessions */}
-              {recentSessions.length > 0 && (
+              {/* Continue From Last Workshop Button - Only show if the most recent session is draft with data */}
+              {recentSessions.length > 0 && 
+               recentSessions[0].status === 'draft' && 
+               ((recentSessions[0].painPointsCount || 0) > 0 || (recentSessions[0].useCasesCount || 0) > 0) && (
                 <Button
                   size="lg"
                   variant="outline"
@@ -1055,11 +1064,11 @@ export default function Home() {
                         onClick={() => handleLoadSession(session.id)}
                         className="flex items-center justify-between p-4 bg-card border border-border rounded-lg hover:border-[var(--color-buyframe-red)] hover:shadow-md cursor-pointer transition-all group"
                       >
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4 flex-1">
                           <div className="h-10 w-10 rounded-full bg-muted/50 flex items-center justify-center group-hover:bg-[var(--color-buyframe-red)]/10 transition-colors">
                             <Clock className="h-5 w-5 text-muted-foreground group-hover:text-[var(--color-buyframe-red)] transition-colors" />
                           </div>
-                          <div>
+                          <div className="flex-1">
                             <div className="font-medium text-base group-hover:text-[var(--color-buyframe-red)] transition-colors">
                               {session.name}
                             </div>
@@ -1075,7 +1084,17 @@ export default function Home() {
                             </div>
                           </div>
                         </div>
-                        <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-[var(--color-buyframe-red)] group-hover:translate-x-1 transition-all" />
+                        <div className="flex items-center gap-3">
+                          <Badge 
+                            variant="outline"
+                            className={session.status === 'completed' 
+                              ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100 uppercase font-semibold text-xs rounded-md' 
+                              : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 uppercase font-semibold text-xs rounded-md'}
+                          >
+                            {session.status === 'completed' ? 'Completed' : 'Draft'}
+                          </Badge>
+                          <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-[var(--color-buyframe-red)] group-hover:translate-x-1 transition-all" />
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1411,8 +1430,8 @@ export default function Home() {
                     dataCloud: baseline?.dataCloud || "",
                     otherLicenses: [],
                     timeline: savedState?.timeline || baseline?.timeline || "Jan 31st 2025",
-                    calculatedRevenue: savedState?.revenue ?? baseline?.calculatedRevenue ?? 0,
-                    calculatedSavings: savedState?.savings ?? baseline?.calculatedSavings ?? 0,
+                    calculatedRevenue: savedState?.revenue ?? baseline?.calculatedRevenue ?? null,
+                    calculatedSavings: savedState?.savings ?? baseline?.calculatedSavings ?? null,
                     calculatedEfficiency: baseline?.calculatedEfficiency || 0
                   };
                 };
@@ -1627,7 +1646,7 @@ export default function Home() {
                       <td className="px-4 py-3">
                         <Input
                           type="number"
-                          value={useCase.calculatedRevenue || 0}
+                          value={useCase.calculatedRevenue ?? ''}
                           onChange={(e) => {
                             const val = parseFloat(e.target.value) || 0;
                             const newCases = [...useCases];
@@ -1645,7 +1664,7 @@ export default function Home() {
                       <td className="px-4 py-3">
                         <Input
                           type="number"
-                          value={useCase.calculatedSavings || 0}
+                          value={useCase.calculatedSavings ?? ''}
                           onChange={(e) => {
                             const val = parseFloat(e.target.value) || 0;
                             const newCases = [...useCases];

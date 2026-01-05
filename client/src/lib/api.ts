@@ -83,6 +83,7 @@ export interface Session {
   id: number;
   name: string;
   description?: string;
+  status?: string; // 'draft' or 'completed'
   createdBy: number;
   createdAt: Date;
   updatedAt: Date;
@@ -168,6 +169,11 @@ export const sessionsAPI = {
 
   update: async (id: number, name?: string, description?: string) => {
     const { data } = await api.put(`/sessions/${id}`, { name, description });
+    return data as Session;
+  },
+
+  markCompleted: async (id: number) => {
+    const { data } = await api.post(`/sessions/${id}/mark-completed`);
     return data as Session;
   },
 
