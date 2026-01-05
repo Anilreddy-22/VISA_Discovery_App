@@ -15,6 +15,7 @@ router.get('/', async (req, res) => {
       id: schema.sessions.id,
       name: schema.sessions.name,
       description: schema.sessions.description,
+      status: schema.sessions.status,
       createdBy: schema.sessions.createdBy,
       createdAt: schema.sessions.createdAt,
       updatedAt: schema.sessions.updatedAt,
@@ -44,6 +45,7 @@ router.get('/:id', async (req, res) => {
       id: schema.sessions.id,
       name: schema.sessions.name,
       description: schema.sessions.description,
+      status: schema.sessions.status,
       createdBy: schema.sessions.createdBy,
       createdAt: schema.sessions.createdAt,
       updatedAt: schema.sessions.updatedAt,
@@ -122,6 +124,41 @@ router.put('/:id', async (req, res) => {
   } catch (error) {
     console.error('Update session error:', error);
     res.status(500).json({ error: 'Failed to update session' });
+  }
+});
+
+// Mark session as completed
+router.post('/:id/mark-completed', async (req, res) => {
+  try {
+    const sessionId = parseInt(req.params.id);
+
+    // Check if session exists and user has permission
+    const [existingSession] = await db.select()
+      .from(schema.sessions)
+      .where(eq(schema.sessions.id, sessionId))
+      .limit(1);
+
+    if (!existingSession) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Only creator or admin can mark as completed
+    if (existingSession.createdBy !== req.user!.userId && req.user!.role !== 'admin') {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+
+    const [updated] = await db.update(schema.sessions)
+      .set({
+        status: 'completed',
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.sessions.id, sessionId))
+      .returning();
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Mark session as completed error:', error);
+    res.status(500).json({ error: 'Failed to mark session as completed' });
   }
 });
 

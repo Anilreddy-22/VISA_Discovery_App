@@ -15,6 +15,7 @@ export const sessions = pgTable('sessions', {
   id: serial('id').primaryKey(),
   name: text('name').notNull(),
   description: text('description'),
+  status: text('status').notNull().default('draft'), // 'draft' or 'completed'
   createdBy: integer('created_by').notNull().references(() => users.id),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
