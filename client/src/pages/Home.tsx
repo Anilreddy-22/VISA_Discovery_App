@@ -1070,17 +1070,11 @@ export default function Home() {
                           </div>
                           <div className="flex-1">
                             <div className="font-medium text-base group-hover:text-[var(--color-buyframe-red)] transition-colors">
-                              {session.name}
+                              {session.name.replace(/\s*-\s*\d{2}\/\d{2}\/\d{4}\s*$/, '')} - {new Date(session.updatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '/')}
                             </div>
-                            <div className="text-xs text-muted-foreground flex gap-3 mt-1">
-                              <span className="flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
-                                {new Date(session.updatedAt).toLocaleDateString()} {new Date(session.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
-                                {session.useCasesCount || 0} use cases
-                              </span>
+                            <div className="text-xs text-muted-foreground flex gap-1 mt-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-gray-400 mt-1"></span>
+                              {new Date(session.updatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })} {new Date(session.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </div>
                           </div>
                         </div>
@@ -1088,8 +1082,8 @@ export default function Home() {
                           <Badge 
                             variant="outline"
                             className={session.status === 'completed' 
-                              ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100 uppercase font-semibold text-xs rounded-md' 
-                              : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 uppercase font-semibold text-xs rounded-md'}
+                              ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100 uppercase font-semibold text-xs rounded-full' 
+                              : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 uppercase font-semibold text-xs rounded-full'}
                           >
                             {session.status === 'completed' ? 'Completed' : 'Draft'}
                           </Badge>
